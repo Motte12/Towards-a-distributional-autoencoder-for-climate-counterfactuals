@@ -2,27 +2,27 @@ This repository contains code to reproduce the results for the extended abstract
 
 ## Repository Structure
 
-DistributionalPrincipalAutoencoder/
+Towards-a-distributional-autoencoder-for-climate-counterfactuals/
 ├── README.md
 ├── LICENSE             
 ├── src/
-│   ├── modeling/                   # Core modeling code
+│   ├── modeling/                   -> Core modeling code
 │   │   ├── __init__.py
-│   │   ├── create_ensemble.sh      # bash script to properly start create_test_ensemble.py
-|   |   ├── create_test_ensemble.py # python script to create an ensemble from a trained model
-│   │   ├── pca_encoder.py          # contains a pca encoder
-│   │   ├── start_joint_training.sh # start python script for training DAE
-|   |   └── train_joint_dae.py      # script to train model
-│   ├── analysis/                   # Code for analysis of model output
+│   │   ├── create_ensemble.sh      -> bash script to properly start create_test_ensemble.py
+|   |   ├── create_test_ensemble.py -> python script to create an ensemble from a trained model
+│   │   ├── pca_encoder.py          -> contains a pca encoder
+│   │   ├── start_joint_training.sh -> start python script for training DAE
+|   |   └── train_joint_dae.py      -> script to train model
+│   ├── analysis/                   -> Code for analysis of model output
 │   │   ├── __init__.py
-│   │   └── extended_abstract_figure.ipynb # notebook to create figure in extended abstract
-│   └── utils/                      # Helper functions shared between modeling and analysis
+│   │   └── extended_abstract_figure.ipynb -> notebook to create figure in extended abstract
+│   └── utils/                      -> Helper functions shared between modeling and analysis
 │       ├── __init__.py
 │       ├── utils.py
 │       ├── dpa_ensemble.py
 │       └── evaluation.py
-├── environment.yml                 # Conda environment file 
-└──_devicecuda100_6_100_100_1001_20_2_50_encoderislearnable_lambda0.5_alpha1.5_bs128_bnisFalse_lr0.0001_pene0 # pre-trained model
+├── environment.yml                 -> Conda environment file 
+└──_devicecuda100_6_100_100_1001_20_2_50_encoderislearnable_lambda0.5_alpha1.5_bs128_bnisFalse_lr0.0001_pene0 -> pre-trained model
 
 ## Instructions
 
@@ -53,4 +53,4 @@ DistributionalPrincipalAutoencoder/
 
 This project is **work in progress**. If you encounter any issues or have suggestions, please reach out.
 
-This project builds is based on the [engression framework] (https://github.com/xwshen51/engression).
+This project builds is based on the [engression framework](https://github.com/xwshen51/engression).
