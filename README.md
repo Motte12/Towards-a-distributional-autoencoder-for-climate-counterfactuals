@@ -58,4 +58,5 @@ Towards-a-distributional-autoencoder-for-climate-counterfactuals/
 
 This project is **work in progress**. If you encounter any issues or have suggestions, please reach out.
 
-This project builds is based on the [engression framework](https://github.com/xwshen51/engression).
+#### License
+This project uses a small portion of code from [this framework](https://github.com/xwshen51/engression) by Xinwei Shen and Nicolai Meinshausen, which is licensed under the BSD 3-Clause License. No changes were made to the original code. The rest of the project is my own original work, licensed under the MIT License.
