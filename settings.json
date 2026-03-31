@@ -1,12 +1,12 @@
 {
 	"paths": { 
-	  "data": "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/v5_starting16012026/",
+	  "data": "",
 	  "dataset_trefht": "europe_10percent_masked_stacked_TREFHT_JJA.nc",
 	  "dataset_z500": "pcsts_and_fGMT_not_standardized_LE.nc",
 	  "dataset_trefht_eth_transient": "ETH_europe_10percent_masked_stacked_TREFHT_JJA.nc",
 	  "dataset_trefht_eth_nudged_shifted": "ETH_europe_10percent_masked_stacked_TREFHT_nudged_JJA.nc",
 	  "dataset_z500_eth_test": "pcsts_and_fGMT_not_standardized_ETH.nc",
-	  "output_dir": "/work2/fl53wumy-llaae_ws_new/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/module_test"
+	  "output_dir": ""
 	},
 
 	"model_parameters": {

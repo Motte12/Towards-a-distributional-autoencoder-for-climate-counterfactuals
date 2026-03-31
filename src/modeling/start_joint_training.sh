@@ -1,10 +1,4 @@
 #!/bin/bash
-#SBATCH --job-name=dpa-train
-#SBATCH --partition=clara
-#SBATCH --gpus=rtx2080ti:1
-#SBATCH --mem=50G
-#SBATCH --time=0-08:00:00
-
 # use slurm if required
 
 # start training

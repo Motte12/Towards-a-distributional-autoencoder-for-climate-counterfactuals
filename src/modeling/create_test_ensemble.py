@@ -1,10 +1,6 @@
 ###########################
 ### Create DPA ensemble ###
 ###########################
-## 1) load test data
-## 2) load encoder, decoder, latent map
-## 3) create ensemble
-## 4) create .nc array containing results
 
 import torch
 from torchvision.utils import make_grid
