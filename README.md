@@ -25,6 +25,7 @@ Towards-a-distributional-autoencoder-for-climate-counterfactuals/
 │       ├── dpa_ensemble.py
 │       └── evaluation.py
 ├── environment.yml                 # Conda environment file
+├── settings.json                   # global settings
 └── _devicecuda100_6_100_100_1001_20_2_50_encoderislearnable_lambda0.5_alpha1.5_bs128_bnisFalse_lr0.0001_pene0 # Pre-trained model
 ```
 
