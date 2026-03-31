@@ -1,28 +1,33 @@
+# Towards-a-distributional-autoencoder-for-climate-counterfactuals
+
 This repository contains code to reproduce the results for the extended abstract *Towards a distributional autoencoder for climate counterfactuals* submitted to the Climate Informatics 2026 conference.
 
 ## Repository Structure
 
+```
 Towards-a-distributional-autoencoder-for-climate-counterfactuals/
 ├── README.md
-├── LICENSE             
+├── LICENSE
 ├── src/
-│   ├── modeling/                   -> Core modeling code
+│   ├── modeling/                   # Core modeling code
 │   │   ├── __init__.py
-│   │   ├── create_ensemble.sh      -> bash script to properly start create_test_ensemble.py
-|   |   ├── create_test_ensemble.py -> python script to create an ensemble from a trained model
-│   │   ├── pca_encoder.py          -> contains a pca encoder
-│   │   ├── start_joint_training.sh -> start python script for training DAE
-|   |   └── train_joint_dae.py      -> script to train model
-│   ├── analysis/                   -> Code for analysis of model output
+│   │   ├── create_ensemble.sh      # Bash script to start create_test_ensemble.py
+│   │   ├── create_test_ensemble.py # Create an ensemble from a trained model
+│   │   ├── pca_encoder.py          # PCA encoder implementation
+│   │   ├── start_joint_training.sh # Launch training script for DAE
+│   │   └── train_joint_dae.py      # Train the model
+│   ├── analysis/                   # Model output analysis
 │   │   ├── __init__.py
-│   │   └── extended_abstract_figure.ipynb -> notebook to create figure in extended abstract
-│   └── utils/                      -> Helper functions shared between modeling and analysis
+│   │   └── extended_abstract_figure.ipynb # Figure for extended abstract
+│   └── utils/                      # Shared helper functions
 │       ├── __init__.py
 │       ├── utils.py
 │       ├── dpa_ensemble.py
 │       └── evaluation.py
-├── environment.yml                 -> Conda environment file 
-└──_devicecuda100_6_100_100_1001_20_2_50_encoderislearnable_lambda0.5_alpha1.5_bs128_bnisFalse_lr0.0001_pene0 -> pre-trained model
+├── environment.yml                 # Conda environment file
+└── _devicecuda100_6_100_100_1001_20_2_50_encoderislearnable_lambda0.5_alpha1.5_bs128_bnisFalse_lr0.0001_pene0 # Pre-trained model
+```
+
 
 ## Instructions
 
