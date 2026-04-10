@@ -20,7 +20,7 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import shutil
 import sys
-sys.path.append('../utils')
+sys.path.append('/home/sc.uni-leipzig.de/fl53wumy/llaae_new/TowardsDistributionalAutoencoderClimateCounterfactuals/src/utils')
 import utils as ut
 
 def main():
@@ -30,11 +30,12 @@ def main():
     ##############
     parser = argparse.ArgumentParser(description="Train a model with given hyperparameters.")
     parser.add_argument('--settings_file', type=str, default="../../settings.json", help='Settings file')
-    args = parser.parse_args()
+    #args = parser.parse_args()
+    temp_args, _ = parser.parse_known_args()
 
     # load default settings from settings.json
     # settings
-    with open(args.settings_file, 'r') as file:
+    with open(temp_args.settings_file, 'r') as file:
         settings = json.load(file)
 
     model_params = settings['model_parameters']
@@ -520,6 +521,7 @@ def main():
         ### Save Model ###
         ##################
         if (epoch_idx + 1) % 5 == 0:
+            # only state dict
             if args.encoder == "learnable":
                 torch.save(model_enc.state_dict(), save_dir + "model_enc_" + str(epoch_idx + 1) + ".pt")
             torch.save(model_dec.state_dict(), save_dir + "model_dec_" + str(epoch_idx + 1) + ".pt")
