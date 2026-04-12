@@ -221,3 +221,24 @@ def restore_nan_columns(reduced_tensor: torch.Tensor, column_mask: torch.Tensor)
     restored_tensor[:, column_mask] = reduced_tensor
     return restored_tensor
 
+def get_ger_1d_data(trefht_pre,
+                    lat_min = 48,
+                    lat_max = 54,
+                    lon_min = 6,
+                    lon_max = 15
+                    ):
+    
+    # cut data
+    trefht_le = trefht_pre.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))
+    
+    # calculate weighted means
+    #weights
+    weights_pre = np.cos(np.deg2rad(trefht_le["lat"]))
+    weights = weights_pre / weights_pre.sum()
+    
+    # training data
+    trefht_le_spat_mean = trefht_le.weighted(weights).mean(dim=("lat", "lon"))
+    trefht_le_spat_mean
+    
+    return trefht_le_spat_mean
+
