@@ -5,6 +5,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import matplotlib.dates as mdates
+from matplotlib.patches import Patch
+
 
 import sys
 sys.path.append('../')
@@ -137,7 +139,115 @@ def plot_multiple_dpa_time_series(true_t,
 
     return fig, ax
     
+def compare_distrs(test, dpa, dpa_ensemble_spat_mean, save_path, comment=None):
+    """
+    SHOULD SAVE TRUE STATISTICS AS WELL!
+    """
+    x1 = dpa 
+    x2 = test # assign loaded numpy array here
+    
+    fig, ax = plt.subplots(figsize=(10, 6))
+    
+    # Histogram (density=True → normalized)
+    ax.hist(x1, bins=40, density=True, alpha=0.5, label=f"{comment} DAE ensemble")
+    ax.hist(x2, bins=40, density=True, alpha=0.5, label=f"{comment} ERA5")
+    
+    # Compute statistics
+    mean1, std1 = np.mean(x1), np.std(x1)
+    mean2, std2 = np.mean(x2), np.std(x2)
+    
+    print(f"{comment} mean bias: {np.abs(mean2 - mean1)}")
+    print(f"{comment} set true std: {std2}")
+    print(f"{comment} set DAE std: {std1}")
+    
+    # Add mean lines
+    ax.axvline(mean1, linestyle="--", linewidth=2, color="tab:blue")
+    ax.axvline(mean2, linestyle="--", linewidth=2, color ="tab:orange")
+    
+    # Add ±2σ lines
+    ax.axvline(mean1 - 2*std1, linestyle=":", linewidth=2, color="tab:blue")
+    ax.axvline(mean1 + 2*std1, linestyle=":", linewidth=2, color="tab:blue")
+    
+    ax.axvline(mean2 - 2*std2, linestyle=":", linewidth=2, color ="tab:orange")
+    ax.axvline(mean2 + 2*std2, linestyle=":", linewidth=2, color ="tab:orange")
+    
+    ax.set_xlabel("Temperature anomaly")
+    ax.set_ylabel("Density")
+    
+    custom_patch = Patch(
+        facecolor='tab:orange',
+        edgecolor='tab:blue'
+    )
+    
+    # Get existing legend entries
+    handles, labels = ax.get_legend_handles_labels()
+    
+    # Append your custom entry
+    handles.append(custom_patch)
+    labels.append(f"mean bias = {np.abs(mean2 - mean1)}")
+    
+    # Rebuild legend
+    ax.legend(handles, labels)
+    ax.grid(alpha=0.3)
+    
+    plt.tight_layout()
+    # save figure 
+    plt.savefig(f"{save_path}/{comment}_validation_T_distrs_comparison.pdf")
+    #plt.show()
+    
+    
+    # Quantile-Quantile
+    quantiles = np.arange(0.05,1,0.05)
+    quantiles_dpa = np.quantile(dpa, quantiles)
+    quantiles_test = np.quantile(test, quantiles)
+    plt.scatter(quantiles_test, quantiles_dpa, marker='x')
+    
+    # Plot 1:1 line
+    x = np.linspace(-5, 5, 100)
+    plt.plot(x, x, color="black", linestyle="--")
+    plt.xlabel("True quantiles")
+    plt.ylabel("DAE quantiles")
+    plt.savefig(f"{save_path}/{comment}_QQ_T_distrs_comparison.pdf")
+    #plt.show()
+    mae_qq = np.mean(np.abs(quantiles_test-quantiles_dpa))
+    print(f"comment Q-Q MAE: {mae_qq}")
+    
+    
+    # Coverage-Quantiles
+    dpa_ensemble_spat_mean_quantiles = np.quantile(dpa_ensemble_spat_mean, quantiles, axis=0)
+    print("DPA quantiles shape:", dpa_ensemble_spat_mean_quantiles.shape)
+    cover_dpa = compute_coverage_per_quantile(test, dpa_ensemble_spat_mean_quantiles.T, quantiles)
+    plt.scatter(quantiles, cover_dpa, marker='x')
+    plt.plot(x, x, color="black", linestyle="--")
+    plt.xlim(0,1)
+    plt.ylim(0,1)
+    plt.ylabel("Fraction of points in quantile")
+    plt.xlabel("Nominal quantiles")
+    plt.savefig(f"{save_path}/{comment}_CQ_T_distrs_comparison.pdf")
+    #plt.show()
+    mae_cq = np.mean(np.abs(quantiles-cover_dpa))
+    print(f"{comment} C-Q MAE: {mae_cq}")
+    return 
 
+def compute_coverage_per_quantile(y_true, q_preds, quantiles):
+    """
+    y_true: (N,)
+    q_preds: (N, Q)
+    quantiles: (Q,)
+    Returns: empirical coverages array of shape (Q,)
+    """
+    y_true = np.asarray(y_true).reshape(-1)
+    q_preds = np.asarray(q_preds)
+    quantiles = np.asarray(quantiles)
+
+    coverages = []
+    for j in range(len(quantiles)):
+        tau = quantiles[j]
+        q_tau = q_preds[:, j]
+        cov = np.mean(y_true <= q_tau)
+        coverages.append(cov)
+
+    return np.array(coverages)
 
 
 

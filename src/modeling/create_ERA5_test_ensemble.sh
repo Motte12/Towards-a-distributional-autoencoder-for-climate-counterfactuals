@@ -56,7 +56,7 @@ settings_file=$(jq -r '.settings_file' "$cfg")
 # using no slurm
 python create_test_ensemble.py \
     --ens_members $ENS_MEMBERS \
-    --ensemble_type "ETH" \
+    --ensemble_type "ERA5_inherent" \
     --save_path_ensemble_single $ensemble_save_path_eth \
     --model_path "$MODEL_PATH/${MODEL}" \
     --encoder_model $ENCODER \

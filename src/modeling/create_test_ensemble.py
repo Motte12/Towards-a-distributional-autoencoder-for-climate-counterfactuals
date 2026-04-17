@@ -42,6 +42,7 @@ def main():
     parser.add_argument("--latent_map_model", type=str, help="latent_map filename")
     parser.add_argument("--no_epochs", type=int, help="Number of epochs")
     parser.add_argument("--settings_file_path", type=str, help="Settings file path.")
+    parser.add_argument("--ensemble_type", type=str, default="ETH", help="Which ensemble to create.")
 
       # --- Encoder and model structure ---
     parser.add_argument("--encoder", type=str, default="learnable",
@@ -109,7 +110,7 @@ def main():
         save_path_ensemble_single = f"{args.save_path_ensemble_single}eth_ensemble_after_{args.no_epochs}_epochs"
 
     else:
-        save_path_ensemble_single = f"{args.save_path_ensemble_single}eth_ensemble_after_{args.no_epochs}_epochs"
+        save_path_ensemble_single = f"{args.save_path_ensemble_single}{args.ensemble_type}_ensemble_after_{args.no_epochs}_epochs"
     
     os.makedirs(save_path_ensemble_single, exist_ok=True)
     print("save_path_ensemble_single", save_path_ensemble_single)
@@ -117,7 +118,7 @@ def main():
     
     
     # create_ensemble() saves ensemble and return mask
-    mask, ds_train, ds_test, x_te_reduced = de.create_ensemble(ensemble_type="ETH", #"ETH"
+    mask, ds_train, ds_test, x_te_reduced = de.create_ensemble(ensemble_type=args.ensemble_type, #"ETH"
                                     ensemble_size=args.ens_members,
                                     save_path=save_path_ensemble_single,
                                     device=device,
