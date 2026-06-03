@@ -11,6 +11,7 @@ import argparse
 import json
 import xarray as xr
 import torch.nn as nn
+import pandas as pd
 #from sklearn.manifold import TSNE
 
 import numpy as np
@@ -141,6 +142,7 @@ def load_both_dpa_arrays(path, mask, ds_coords, ens_members, save_path=None, no_
     list_ds = []
 
     for climate in climate_list:
+        print("CLIMATE:", climate)
         print("Now loading DPA ensemble restored including nans")
         print("Path:", f"{path}{climate}1_te.pt")
         tensor_list_raw = [torch.load(f"{path}{climate}{i}_te.pt", map_location=torch.device('cpu'), weights_only=False) for i in range(1,ens_members+1)] #this is loading raw arrays without nans
@@ -154,7 +156,31 @@ def load_both_dpa_arrays(path, mask, ds_coords, ens_members, save_path=None, no_
     
         
         # create dataset
-        ds_raw = xr.Dataset({
+        if climate == "cf_era5_2028_gen":
+            ds_raw = xr.Dataset({
+                            "TREFHT": xr.DataArray(stacked_reshaped_raw.detach().numpy(), 
+                                 dims=("ensemble_member", "time", "lat_x_lon"),
+                                 coords={
+                                        "ensemble_member": np.arange(1,stacked_reshaped_raw.shape[0]+1),
+                                        "time": ds_coords.sel(time="2003").time,
+                                        "lat_x_lon": np.arange(stacked_raw.shape[2])
+                                        },
+                                                  )
+            })
+
+        elif climate == "cf_era5_2053_gen":
+            ds_raw = xr.Dataset({
+                            "TREFHT": xr.DataArray(stacked_reshaped_raw.detach().numpy(), 
+                                 dims=("ensemble_member", "time", "lat_x_lon"),
+                                 coords={
+                                        "ensemble_member": np.arange(1,stacked_reshaped_raw.shape[0]+1),
+                                        "time": ds_coords.sel(time="2003").time,
+                                        "lat_x_lon": np.arange(stacked_raw.shape[2])
+                                        },
+                                                  )
+            })
+        else:
+            ds_raw = xr.Dataset({
                         "TREFHT": xr.DataArray(stacked_reshaped_raw.detach().numpy(), 
                              dims=("ensemble_member", "time", "lat_x_lon"),
                              coords={
@@ -164,6 +190,7 @@ def load_both_dpa_arrays(path, mask, ds_coords, ens_members, save_path=None, no_
                                     },
                                               )
         })
+        
         print(ds_raw)
         if save_path is not None:
             ds_raw.to_netcdf(f"{save_path}/raw_ETH_{climate}_dpa_ens_{no_epochs}_dataset.nc", format="NETCDF4")
@@ -184,17 +211,44 @@ def load_both_dpa_arrays(path, mask, ds_coords, ens_members, save_path=None, no_
     
         
         # create dataset
-        ds = xr.Dataset({
-                        "TREFHT": xr.DataArray(stacked_reshaped.detach().numpy(), 
-                             dims=("ensemble_member", "time", "lat", "lon"),
-                             coords={
-                                    "ensemble_member": np.arange(1,stacked_reshaped.shape[0]+1),
-                                    "time": ds_coords.time,
-                                    "lat": ds_coords.lat,
-                                    "lon": ds_coords.lon
-                                    },
-                                              )
-        })
+        if climate == "cf_era5_2028_gen":
+            ds = xr.Dataset({
+                            "TREFHT": xr.DataArray(stacked_reshaped.detach().numpy(), 
+                                 dims=("ensemble_member", "time", "lat", "lon"),
+                                 coords={
+                                        "ensemble_member": np.arange(1,stacked_reshaped.shape[0]+1),
+                                        "time": ds_coords.sel(time="2003").time,
+                                        "lat": ds_coords.lat,
+                                        "lon": ds_coords.lon
+                                        },
+                                                  )
+            })
+
+        elif climate == "cf_era5_2053_gen":
+            ds = xr.Dataset({
+                            "TREFHT": xr.DataArray(stacked_reshaped.detach().numpy(), 
+                                 dims=("ensemble_member", "time", "lat", "lon"),
+                                 coords={
+                                        "ensemble_member": np.arange(1,stacked_reshaped.shape[0]+1),
+                                        "time": ds_coords.sel(time="2003").time,
+                                        "lat": ds_coords.lat,
+                                        "lon": ds_coords.lon
+                                        },
+                                                  )
+            })
+            
+        else:
+            ds = xr.Dataset({
+                            "TREFHT": xr.DataArray(stacked_reshaped.detach().numpy(), 
+                                 dims=("ensemble_member", "time", "lat", "lon"),
+                                 coords={
+                                        "ensemble_member": np.arange(1,stacked_reshaped.shape[0]+1),
+                                        "time": ds_coords.time,
+                                        "lat": ds_coords.lat,
+                                        "lon": ds_coords.lon
+                                        },
+                                                  )
+            })
         list_ds.append(ds)
         print(ds)
         if save_path is not None:
@@ -220,4 +274,25 @@ def restore_nan_columns(reduced_tensor: torch.Tensor, column_mask: torch.Tensor)
     restored_tensor = torch.full((n_rows, n_cols), float('nan'), dtype=reduced_tensor.dtype, device=reduced_tensor.device)
     restored_tensor[:, column_mask] = reduced_tensor
     return restored_tensor
+
+def get_ger_1d_data(trefht_pre,
+                    lat_min = 48,
+                    lat_max = 54,
+                    lon_min = 6,
+                    lon_max = 15
+                    ):
+    
+    # cut data
+    trefht_le = trefht_pre.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))
+    
+    # calculate weighted means
+    #weights
+    weights_pre = np.cos(np.deg2rad(trefht_le["lat"]))
+    weights = weights_pre / weights_pre.sum()
+    
+    # training data
+    trefht_le_spat_mean = trefht_le.weighted(weights).mean(dim=("lat", "lon"))
+    trefht_le_spat_mean
+    
+    return trefht_le_spat_mean
 

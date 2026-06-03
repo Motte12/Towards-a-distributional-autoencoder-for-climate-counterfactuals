@@ -48,6 +48,10 @@ def load_test_data(settings_file_path, standardize_predictors=0):
     z500_path = os.path.join(settings['paths']['data'], settings['paths']['dataset_z500'])
     ds_z500_pre = xr.open_dataset(z500_path) #settings['dataset_z500'])
     pi_period_mean = ds_z500_pre.pseudo_pcs.isel(mode=1000, time=slice(0,4769)).sel(time=slice("1850","1900")).mean().values
+    print("mean_2028 xarray", ds_z500_pre.pseudo_pcs.isel(mode=1000, time=slice(0,4769)).sel(time="2028"))
+    
+    mean_2028 = ds_z500_pre.pseudo_pcs.isel(mode=1000, time=slice(0,4769)).sel(time="2028").mean().values
+    mean_2053 = ds_z500_pre.pseudo_pcs.isel(mode=1000, time=slice(0,4769)).sel(time="2053").mean().values
     print("PI ref mean:", pi_period_mean)
 
     ds_z500_train=ds_z500_pre.isel(time=slice(0,(4769 * 10)))
@@ -55,6 +59,10 @@ def load_test_data(settings_file_path, standardize_predictors=0):
     
     if standardize_predictors:
         z500_train_pre, mean_train, std_train = ut.standardize_numpy(ds_z500_train.pseudo_pcs.values)
+        print("z500_train_pre shape:", z500_train_pre.shape)
+        print("PI ref mean standardized:", np.mean(z500_train_pre[0:969,-1]))
+        print("mean_train:", mean_train)
+        print("std_train:", std_train)
         z500_test_pre, _, _ = ut.standardize_numpy(ds_z500_test.pseudo_pcs.values, mean_train, std_train) 
         z500_train = torch.from_numpy(z500_train_pre)
         z500_test = torch.from_numpy(z500_test_pre)
@@ -70,7 +78,7 @@ def load_test_data(settings_file_path, standardize_predictors=0):
     #z500_train = z500[0:int(4769 * 10),:]
     #z500_test = z500[int(90*4769):476900,:]
     
-    return z500_test, z500_train, mask_x_te, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced, pi_period_mean
+    return z500_test, z500_train, mask_x_te, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced, pi_period_mean, mean_2028, mean_2053
 
 def load_eth_test_data(settings_file_path, standardize_predictors=0):
 
@@ -151,6 +159,93 @@ def load_eth_test_data(settings_file_path, standardize_predictors=0):
     z500 = torch.from_numpy(ds_z500_standardized)
 
     return z500, mask_x_te_eth_fact, ds_test_eth_fact, ds_test_eth_cf, x_te_reduced_eth_fact, x_te_reduced_eth_cf, mean_gmt, std_gmt 
+
+def load_era5_test_data(settings_file_path, standardize_predictors=0, standardization_type="inherent"):
+    """
+    standardization_type: "train_stats" (standardize with train set mean and std) or "inherent" (standardize Era5 inherently)
+    """
+
+    with open(settings_file_path, 'r') as file:
+        settings = json.load(file)
+    ##########################################################
+    ### load large ensemble statistics for standardization ###
+    ##########################################################
+    
+
+    ### Load Z500 data ###
+    ds_z500_train_path = os.path.join(settings['paths']['data'], settings['paths']['dataset_z500'])
+    ds_z500_pre_train = xr.open_dataset(ds_z500_train_path)
+    #pi_period_mean = ds_z500_pre.pseudo_pcs.isel(mode=1000, time=slice(0,4769)).sel(time=slice("1850","1900")).mean().values
+    #print("PI ref mean:", pi_period_mean)
+
+    ds_z500_train=ds_z500_pre_train.isel(time=slice(0,(4769 * 90)))
+
+    
+    z500_train_pre, mean_train, std_train = ut.standardize_numpy(ds_z500_train.pseudo_pcs.values)
+    mean_gmt = mean_train[0,-1]
+    std_gmt = std_train[0,-1]
+
+    ##############################################################
+    ### end load large ensemble statistics for standardization ###
+    ##############################################################
+    
+    # TREFHT 
+    ## factual
+    
+    
+    ### Load temperature data ###
+    ds_test_eth_fact_path = os.path.join(settings['paths']['data'], settings['paths']['dataset_trefht_era5_transient'])
+    ds_test_eth_fact = xr.open_dataset(ds_test_eth_fact_path) #(settings['dataset_trefht_eth_transient'])
+    
+    
+    # transform to torch tensors
+    x_te_eth_fact = ut.data_to_torch(ds_test_eth_fact, "TREFHT")
+
+    # remove NaNs from data
+    x_te_reduced_eth_fact, mask_x_te_eth_fact = ut.remove_nan_columns(x_te_eth_fact)
+    
+
+    ## counterfactual
+    
+    ### Load temperature data ###
+    ds_test_eth_cf_path = os.path.join(settings['paths']['data'], settings['paths']['dataset_trefht_era5_nudged'])
+    ds_test_eth_cf = xr.open_dataset(ds_test_eth_cf_path) #(settings['dataset_trefht_eth_nudged_shifted'])
+    
+    
+    # transform to torch tensors
+    x_te_eth_cf = ut.data_to_torch(ds_test_eth_cf, "TREFHT")
+
+    # remove NaNs from data
+    x_te_reduced_eth_cf, mask_x_te_eth_cf = ut.remove_nan_columns(x_te_eth_cf)
+    
+    
+    # Z500
+    
+    ### Load Z500 data ###
+    ds_z500_path = os.path.join(settings['paths']['data'], settings['paths']['dataset_z500_era5'])
+    ds_z500_pre = xr.open_dataset(ds_z500_path) #(settings['dataset_z500_eth_test'])
+    
+    
+    print("ATTENTION: Z500 PC time-series is standardized manually here")
+    if standardize_predictors:
+        if standardization_type=="inherent":
+            # old: standardize test set itself
+            ds_z500_standardized, _, _ = ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values)
+            ds_z500_standardized_dummy, _, _ = ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values, mean = mean_train[:,-1], std = std_train[:,-1])
+            ds_z500_standardized[:,-1] = ds_z500_standardized_dummy[:,-1]
+
+        elif standardization_type=="train_stats":
+            # new and supposingly correct: standardize with train statistics
+            ds_z500_standardized, _, _ = ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values, mean_train, std_train)
+
+        
+    else:
+        ds_z500_standardized = ds_z500_pre.pseudo_pcs.values
+    print("z500 dataset shape", ds_z500_standardized.shape)
+    z500 = torch.from_numpy(ds_z500_standardized)
+
+    return z500, mask_x_te_eth_fact, ds_test_eth_fact, ds_test_eth_cf, x_te_reduced_eth_fact, x_te_reduced_eth_cf, mean_gmt, std_gmt
+
 
     
 
@@ -272,15 +367,32 @@ def create_ensemble(ensemble_type,
                    ):
     
     print("Autoencode:", autoencode)
+    era5_future_cfs=False
     # load data
     if ensemble_type == "LE":
         #z500_test, z500_train, mask, ds_train, ds_test, x_te_reduced = load_test_data()
-        z500_test, z500_train, mask, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced, _ = load_test_data(settings_file_path, standardize_predictors)
+        z500_test, z500_train, mask, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced, _, _, _ = load_test_data(settings_file_path, standardize_predictors)
+        notLE=False
 
     elif ensemble_type == "ETH":
         z500_test, mask, ds_test, ds_test_eth_cf, x_te_reduced, x_te_reduced_cf, mean_gmt, std_gmt = load_eth_test_data(settings_file_path, standardize_predictors)
-        _, _, _, _, _, _, _, _, pi_period_mean = load_test_data(settings_file_path, standardize_predictors)
+        _, _, _, _, _, _, _, _, pi_period_mean, mean_2028, mean_2053 = load_test_data(settings_file_path, standardize_predictors)
+        notLE=True
 
+    elif ensemble_type == "ERA5_inherent":
+        z500_test, mask, ds_test, ds_test_eth_cf, x_te_reduced, x_te_reduced_cf, mean_gmt, std_gmt = load_era5_test_data(settings_file_path, standardize_predictors)
+        _, _, _, _, _, _, _, _, pi_period_mean, mean_2028, mean_2053 = load_test_data(settings_file_path, standardize_predictors)
+        notLE=True
+        era5_future_cfs=True
+
+    elif ensemble_type == "ERA5_train_stats":
+        z500_test, mask, ds_test, ds_test_eth_cf, x_te_reduced, x_te_reduced_cf, mean_gmt, std_gmt = load_era5_test_data(settings_file_path, standardize_predictors, standardization_type="train_stats")
+        _, _, _, _, _, _, _, _, pi_period_mean, mean_2028, mean_2053 = load_test_data(settings_file_path, standardize_predictors)
+        notLE=True
+        era5_future_cfs=True
+
+
+    if notLE:
         print("std_gmt:", std_gmt)
         #z500_test, mask, ds_test, x_te_reduced, x_te_reduced_cf = load_eth_test_data() # x_te_reduced is x_te_reduced_eth_fact
     #print("ds_train:", ds_train)
@@ -290,9 +402,17 @@ def create_ensemble(ensemble_type,
         print("std gmt shape:", std_gmt.shape)
         print("std gmt:", std_gmt)
         print("PI ref mean:", pi_period_mean)
+        # standardize temporal fGMT values 
         cf_fgmt = (pi_period_mean - mean_gmt) / std_gmt
+        cf_2028 = (mean_2028 - mean_gmt) / std_gmt
+        cf_2053 = (mean_2053 - mean_gmt) / std_gmt
         print("CF fGMT:", cf_fgmt)
+        print("CF 2028:", cf_2028)
+        print("CF 2052:", cf_2053)
     print("Data loaded")
+
+
+
     # create model
     print("Hidden dim model pred:", hidden_dim_lm)
     model_enc, model_dec, model_pred = create_dpa_model(device,
@@ -318,6 +438,36 @@ def create_ensemble(ensemble_type,
     model_dec.eval()
     model_pred.eval()
 
+    if era5_future_cfs:
+        z500_test_2003_cf = z500_test[(63*19):(64*19),:].clone()
+        
+        # predictors for 2028
+        cf_predictors_2028 = z500_test_2003_cf.clone()
+        cf_predictors_2028[:,-1] = float(cf_2028)
+        print("CF2028 value:", float(cf_2028))
+        
+        # predictors for 2053
+        cf_predictors_2053 = z500_test_2003_cf.clone()
+        cf_predictors_2053[:,-1] = float(cf_2053)
+        print("CF2053 value:", float(cf_2053))
+        print("z500_test shape:", z500_test.shape)
+        # counterfactuals for 2028 and 2053
+        #z500_test_cf[:,-1] = float(cf_fgmt) #-0.7389813694652794 # for fGMT standardized
+        for i in range(1, ensemble_size+1):
+            # create 2028 counterfactuals
+            gen_te_cf_2028 = model_dec(model_pred(cf_predictors_2028.to(device).float()))
+            torch.save(gen_te_cf_2028, f"{save_path}/cf_era5_2028_gen{i}_te.pt")
+
+            # create 2053 counterfactuals
+            gen_te_cf_2053 = model_dec(model_pred(cf_predictors_2053.to(device).float()))
+            torch.save(gen_te_cf_2053, f"{save_path}/cf_era5_2053_gen{i}_te.pt")
+    
+        # skip for test reasons    
+        #create_counterfactual_ensemble=False
+        #create_factual_ensemble=False
+
+
+    
     # actually create ensemble
     if create_factual_ensemble:
         if autoencode:
@@ -353,12 +503,15 @@ def create_ensemble(ensemble_type,
             # replace GMTs with 0 for counterfactual predictions
             z500_test_cf = z500_test
             #z500_test_cf[:,-1] = 0 for fGMT not standardized
+            # pre-industrial counterfactuals
             z500_test_cf[:,-1] = float(cf_fgmt) #-0.7389813694652794 # for fGMT standardized
             for i in range(1, ensemble_size+1):
                 gen_te_cf = model_dec(model_pred(z500_test_cf.to(device).float()))
                 torch.save(gen_te_cf, f"{save_path}/cf_gen{i}_te.pt")
+    
+        
 
-    if ensemble_type == "ETH":
+    if ensemble_type in ["ETH", "ERA5_inherent", "ERA5_train_stats"]:
         ds_train = "no ds_train present"
 
     return mask, ds_train, ds_test, x_te_reduced
@@ -488,7 +641,7 @@ def create_ensemble_1d(ensemble_type,
     # load data
     if ensemble_type == "LE":
         #z500_test, z500_train, mask, ds_train, ds_test, x_te_reduced = load_test_data()
-        z500_test, z500_train, mask, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced = load_test_data(settings_file_path, standardize_predictors)
+        z500_test, z500_train, mask, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced, pi_period_mean, mean_2028, mean_2053 = load_test_data(settings_file_path, standardize_predictors)
 
     elif ensemble_type == "ETH":
         z500_test, mask, ds_test, ds_test_eth_cf, x_te_reduced, x_te_reduced_cf = load_eth_test_data(settings_file_path, standardize_predictors)
