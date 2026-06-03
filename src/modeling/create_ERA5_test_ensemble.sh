@@ -13,7 +13,6 @@ ENS_MEMBERS=$(jq -r '.no_ens_members' "$global_settings") # number of ensemble m
 
 
 #MODEL_PATH="../../" # if using pre-trained model from repository root directory
-
 #MODEL="_devicecuda100_6_100_100_1001_20_2_50_encoderislearnable_lambda0.5_alpha1.5_bs128_bnisFalse_lr0.0001_pene0" # folder that contains the trained models, adjust if necessary
 MODEL=$(jq -r '.current_model' "$global_settings")
 echo "using model: $MODEL $NO_EPOCHS $ENS_MEMBERS"
@@ -60,7 +59,7 @@ settings_file=$(jq -r '.settings_file' "$cfg")
 # using no slurm
 python create_test_ensemble.py \
     --ens_members $ENS_MEMBERS \
-    --ensemble_type "ETH" \
+    --ensemble_type "ERA5_train_stats" \
     --save_path_ensemble_single $ensemble_save_path_eth \
     --model_path "$MODEL_PATH/${MODEL}" \
     --encoder_model $ENCODER \

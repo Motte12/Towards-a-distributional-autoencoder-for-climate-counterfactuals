@@ -42,6 +42,7 @@ def main():
     parser.add_argument("--latent_map_model", type=str, help="latent_map filename")
     parser.add_argument("--no_epochs", type=int, help="Number of epochs")
     parser.add_argument("--settings_file_path", type=str, help="Settings file path.")
+    parser.add_argument("--ensemble_type", type=str, default="ETH", help="Which ensemble to create.")
 
       # --- Encoder and model structure ---
     parser.add_argument("--encoder", type=str, default="learnable",
@@ -109,7 +110,7 @@ def main():
         save_path_ensemble_single = f"{args.save_path_ensemble_single}eth_ensemble_after_{args.no_epochs}_epochs"
 
     else:
-        save_path_ensemble_single = f"{args.save_path_ensemble_single}eth_ensemble_after_{args.no_epochs}_epochs"
+        save_path_ensemble_single = f"{args.save_path_ensemble_single}{args.ensemble_type}_ensemble_after_{args.no_epochs}_epochs"
     
     os.makedirs(save_path_ensemble_single, exist_ok=True)
     print("save_path_ensemble_single", save_path_ensemble_single)
@@ -117,7 +118,7 @@ def main():
     
     
     # create_ensemble() saves ensemble and return mask
-    mask, ds_train, ds_test, x_te_reduced = de.create_ensemble(ensemble_type="ETH", #"ETH"
+    mask, ds_train, ds_test, x_te_reduced = de.create_ensemble(ensemble_type=args.ensemble_type, #"ETH"
                                     ensemble_size=args.ens_members,
                                     save_path=save_path_ensemble_single,
                                     device=device,
@@ -144,14 +145,28 @@ def main():
                                     standardize_predictors=args.standardize_predictors
                                     )
     print("Ensemble created")
+    print("ds_test:", ds_test)
+
+    
     # save data to netCDF dataset
+    if args.ensemble_type=="ETH":
+        climates=["gen", "cf_gen"]
+
+    elif args.ensemble_type in ["ERA5_inherent", "ERA5_train_stats"]:
+        climates=["gen", "cf_gen", "cf_era5_2028_gen", "cf_era5_2053_gen"]
+
+    else:
+        print("probably generating valdiation ensemble")
+    
+    
+        
     tensor_list, tensor_list_raw, stacked, stacked_reshaped, ds = ut.load_both_dpa_arrays(path=f"{save_path_ensemble_single}/",
                                                                     mask=mask,
                                                                     ds_coords=ds_test,
                                                                     ens_members=args.ens_members,
                                                                     save_path=f"{save_path_ensemble_single}",
                                                                     no_epochs=args.no_epochs,
-                                                                    climate_list=["gen", "cf_gen"],
+                                                                    climate_list=climates,
                                                                     )
 
 if __name__ == "__main__":

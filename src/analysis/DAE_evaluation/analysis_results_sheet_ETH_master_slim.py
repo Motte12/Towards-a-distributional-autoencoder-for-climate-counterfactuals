@@ -483,9 +483,6 @@ def main():
     fig.savefig(f"{save_path_eth}/MAE_spatial.pdf")
     plt.show()
     
-    
-
-    sys.exit()
 
     
     
