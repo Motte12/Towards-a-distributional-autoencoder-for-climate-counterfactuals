@@ -20,7 +20,15 @@ Towards-a-distributional-autoencoder-for-climate-counterfactuals/
 │   │   └── train_joint_dae.py      # Train the model
 │   ├── analysis/                   # Model output analysis
 │   │   ├── __init__.py
-│   │   └── extended_abstract_figure.ipynb # Figure for extended abstract
+│   │   ├── extended_abstract_figure.ipynb # Figure for extended abstract
+│   │   ├──Figure03.ipynb
+│   │   ├──Figure03_CF.ipynb
+│   │   ├──2028_2053_ERA5A_attribution_analysis.ipynb
+│   │   └── quantile_regression/                        # contains all baseline quantile regression related code
+│   │       ├── evaluate_pytorch_quantile_regression.py # compare DAE and baseline in regional domain
+│   │       ├── pytorch_quantile_regression.py          # train baseline quantile regression
+│   │       ├── run_baseline_evaluation.sh              # start baseline comparison
+│   │       └── submit_pytorch_quantile_regression.sh   # start quantile regression training
 │   └── utils/                      # Shared helper functions
 │       ├── __init__.py
 │       ├── utils.py                # Data processing and visualization utilities
