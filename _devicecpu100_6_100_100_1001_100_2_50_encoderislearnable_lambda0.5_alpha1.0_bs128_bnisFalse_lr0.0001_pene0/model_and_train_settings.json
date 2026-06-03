@@ -1,5 +1,5 @@
 {
-  "alpha": 1.5,
+  "alpha": 1.0,
   "batch_norm": 0,
   "batch_size": 128,
   "encoder": "learnable",
@@ -13,9 +13,9 @@
   "latent_dim": 100,
   "lr": 0.0001,
   "noise_dim_dec": 100,
-  "noise_dim_lm": 20,
+  "noise_dim_lm": 100,
   "num_layer": 6,
   "num_layer_lm": 2,
   "resblock": 1,
-  "settings_file": "../../settings.json"
+  "settings_file": "tune_settings.json"
 }

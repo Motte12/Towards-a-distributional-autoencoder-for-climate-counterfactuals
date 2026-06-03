@@ -20,7 +20,7 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import shutil
 import sys
-sys.path.append('../utils')
+sys.path.append('/home/sc.uni-leipzig.de/fl53wumy/llaae_new/TowardsDistributionalAutoencoderClimateCounterfactuals/src/utils')
 import utils as ut
 
 def main():
@@ -30,11 +30,12 @@ def main():
     ##############
     parser = argparse.ArgumentParser(description="Train a model with given hyperparameters.")
     parser.add_argument('--settings_file', type=str, default="../../settings.json", help='Settings file')
-    args = parser.parse_args()
+    #args = parser.parse_args()
+    temp_args, _ = parser.parse_known_args()
 
     # load default settings from settings.json
     # settings
-    with open(args.settings_file, 'r') as file:
+    with open(temp_args.settings_file, 'r') as file:
         settings = json.load(file)
 
     model_params = settings['model_parameters']
@@ -77,29 +78,9 @@ def main():
     print("settings_file:", args.settings_file)
     print("args:", args)
 
-    #encoder = args.encoder
-    #in_dim = args.in_dim
-    #latent_dim = args.latent_dim
-    #num_layers = args.num_layer
-    #hidden_dim = args.hidden_dim
-    #noise_dim_dec = args.noise_dim_dec
     out_act = None 
-    #resblock = bool(args.resblock)
-
-    #in_dim_lm = args.in_dim_lm
-    #noise_dim_lm = args.noise_dim_lm
-    #num_layers_lm = args.num_layer_lm
-    #hidden_dim_lm = args.hidden_dim_lm
     beta=1
 
-    # train settings
-    #bn = bool(args.batch_norm)
-    #print("bn:", bn)
-    #batch_size=args.batch_size
-    #include_KL = args.include_KL
-    #lam = args.lam
-    #lr = args.lr
-    #training_epochs=args.epochs
 
     #############
     ### Seeds ###
@@ -396,11 +377,9 @@ def main():
                 
             else:
                 loss = loss_pre
-            #else:
+            
             loss_pred, s1_pred, s2_pred = energy_loss_two_sample(y, gen1, gen2, verbose=True, beta=beta)
             
-            # welchen der beiden folgenden losses nutzen?
-            # loss = loss_pred 
             loss = loss + args.alpha * loss_pred
                 
             loss.backward()
@@ -454,9 +433,7 @@ def main():
                 y_te = test_batch[1].to(device)
 
                 
-                # "save latent space"
                 encoded_sample = model_enc(y_te)
-                #torch.save(encoded_sample, f"{save_dir}epoch_{epoch_idx}_test_sample_latent_space.pt")
                 
                 rec1_te = model_dec(encoded_sample)
                 rec2_te = model_dec(encoded_sample)
@@ -544,6 +521,7 @@ def main():
         ### Save Model ###
         ##################
         if (epoch_idx + 1) % 5 == 0:
+            # only state dict
             if args.encoder == "learnable":
                 torch.save(model_enc.state_dict(), save_dir + "model_enc_" + str(epoch_idx + 1) + ".pt")
             torch.save(model_dec.state_dict(), save_dir + "model_dec_" + str(epoch_idx + 1) + ".pt")
