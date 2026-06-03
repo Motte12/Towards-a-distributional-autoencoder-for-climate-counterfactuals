@@ -1,6 +1,6 @@
 # Towards-a-distributional-autoencoder-for-climate-counterfactuals
 
-This repository contains code to reproduce the results for the extended abstract *Towards a distributional autoencoder for climate counterfactuals* submitted to the Climate Informatics 2026 conference.
+This repository contains code to reproduce the results for [Probabilistic storyline attribution using machine learning](https://arxiv.org/abs/2606.02550) and for the extended abstract *Towards a distributional autoencoder for climate counterfactuals* submitted to the Climate Informatics 2026 conference.
 
 ## Repository Structure
 
@@ -42,7 +42,7 @@ Towards-a-distributional-autoencoder-for-climate-counterfactuals/
 
 
 ### Data setup
-- get the training and test data from **zenodo link**
+- get the training and test data from [Zenodo](https://zenodo.org/records/20528977)
 - create a data directory (arbitrary name) and put the data there (don't change names of the datasets)
 - insert the data directory name into `settings.json` in ['paths']['data']
 - adjust the paths in settings.json
@@ -52,6 +52,7 @@ Towards-a-distributional-autoencoder-for-climate-counterfactuals/
 
 ### Workflow to reproduce the extended abstract figure
 
+0. Get the data ready
 1. create a conda environement using the environment.yaml file ([explained here](https://docs.conda.io/projects/conda/en/stable/user-guide/tasks/manage-environments.html#creating-an-environment-from-a-file))
 2. ajdust `["paths"]["data"]` and `["paths"]["output_dir"]` in `settings.json`
 3. Train the model (or skip this, directly go to step 2 and use the pretrained model in _devicecpu100_6_100_100_1001_100_2_50_encoderislearnable_lambda0.5_alpha1.0_bs128_bnisFalse_lr0)
@@ -73,9 +74,10 @@ Towards-a-distributional-autoencoder-for-climate-counterfactuals/
         + run `src/analysis/DAE_evaluation/evaluate_v5_ETH_DAE_ensemble.sh` to produce data
         + run `src/analysis/DAE_evaluation/plot_data.ipynb`to create Figure 2
     - Figure 3
+        + first, train the baseline quantile regression models using `src/analysis/quantile_regression/submit_pytorch_quantile_regression.sh`and `src/analysis/quantile_regression/pytorch_quantile_regression.py`
         + for subplots a) and c), run `src/analysis/Figure03.ipynb` (`src/analysis/Figure03_CF.ipynb` respectively)
         + for subplots b) and d)
-            + run `src/analysis/quantile_regression/run_baseline_evaluation.sh` (runs `src/analysis/quantile_regression/evaluate_pytorch_quantile_regression.py`)
+            + run `src/analysis/quantile_regression/run_baseline_evaluation.sh` (runs `src/analysis/quantile_regression/evaluate_pytorch_quantile_regression.py`) (you might need to make sure that the path in `src/analysis/quantile_regression/run_baseline_evaluation.sh` line 43 corresponds to the paths where the QR baseline is saved)
             + this produces calibration curves in a subfolder
     - Figure 4
         + run `src/analysis/2028_2053_ERA5_attribution_analysis.ipynb`
