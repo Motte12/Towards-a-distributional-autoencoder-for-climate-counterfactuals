@@ -1,8 +1,9 @@
 #!/bin/bash
-#SBATCH --job-name=QR_SP
+#SBATCH --job-name=QR
 #SBATCH --partition=clara
 #SBATCH --mem=100G
 #SBATCH --time=0-08:00:00
+#SBATCH --array=0-2
 
 # Optional: print job info
 echo "Starting job on $(hostname) at $(date)"
@@ -19,7 +20,10 @@ timestamp=$(date +"%Y-%m-%d_%H-%M")
 ##################
 ### SET DOMAIN ###
 ##################
-domain="SP"
+domains=("SP" "FR" "GER")
+domain="${domains[$SLURM_ARRAY_TASK_ID]}"
+
+
 
 # Name prefix
 settings_file="../../../settings.json"
@@ -27,11 +31,11 @@ settings_file="../../../settings.json"
 # output dir
 output_dir=$(jq -r '.paths.output_dir' "$settings_file")
 echo "Output dir: $output_dir"
-
+    
+echo "=== Running domain: $domain ==="
 
 # Create directory with timestamp
-name="$output_dir/QR_baseline/v5_quantile_regression_${domain}"
-dirname="${name}_${timestamp}"
+dirname="$output_dir/QR_baseline/v5_quantile_regression_${domain}"
 mkdir -p "$dirname"
 
 echo "Created directory: $dirname"
@@ -50,5 +54,6 @@ python pytorch_quantile_regression.py \
     --q_n 99 \
     --domain $domain \
     --standardize_predictors 1
+echo "Domain $domain finished"
 
 echo "Job finished at $(date)"

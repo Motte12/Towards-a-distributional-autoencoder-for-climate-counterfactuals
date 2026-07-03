@@ -1,5 +1,5 @@
 #!/bin/bash
-
+# before executing this script you need to adjust paths in line 5, 22 (optional if you want so save ensemble elsewhere, not recommended), 
 source ~/.bashrc
 eval "$(conda shell.bash hook)"
 conda activate dpa # insert the name of your own conda environment here
@@ -55,9 +55,6 @@ resblock=$(jq -r '.resblock' "$cfg")
 settings_file=$(jq -r '.settings_file' "$cfg")
 
 # create test ensemble
-# using interactive slurm
-# srun -N1 -n1 python create_test_ensemble.py \
-# using no slurm
 python create_test_ensemble.py \
     --ens_members $ENS_MEMBERS \
     --ensemble_type "ETH" \

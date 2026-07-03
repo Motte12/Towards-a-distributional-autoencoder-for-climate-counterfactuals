@@ -610,7 +610,7 @@ def main():
         ax_cal.legend(loc="upper left", frameon=False, fontsize = 6, bbox_to_anchor=(0.0, 0.92))
 
         plt.tight_layout()
-        #plt.savefig(f"{args.results_save_path}CALIBRATION_{args.domain}_{args.eval_epochs}epochs_qr_vs_dpa_CF={bool(args.eval_counterfactuals)}_{args.dae_model}.pdf")
+        plt.savefig(f"{args.results_save_path}CALIBRATION_{args.domain}_{args.eval_epochs}epochs_qr_vs_dpa_CF={bool(args.eval_counterfactuals)}_{args.dae_model}.pdf")
         sys.exit()
 
         

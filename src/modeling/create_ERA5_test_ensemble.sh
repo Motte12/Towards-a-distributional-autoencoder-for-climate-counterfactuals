@@ -54,9 +54,6 @@ resblock=$(jq -r '.resblock' "$cfg")
 settings_file=$(jq -r '.settings_file' "$cfg")
 
 # create test ensemble
-# using interactive slurm
-# srun -N1 -n1 python create_test_ensemble.py \
-# using no slurm
 python create_test_ensemble.py \
     --ens_members $ENS_MEMBERS \
     --ensemble_type "ERA5_train_stats" \
