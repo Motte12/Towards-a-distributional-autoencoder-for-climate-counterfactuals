@@ -552,7 +552,7 @@ def main():
             dae_color="tab:red"
             climate="Factual"
 
-        ax_cal.plot(quantiles, cover_qr, label=f"QR {climate}", color="darkcyan", linewidth=1)
+        ax_cal.plot(quantiles, cover_qr, label=f"QR {climate}", color="goldenrod", linewidth=1) # color='#4daf4a'
         ax_cal.plot(quantiles, cover_dpa, label=f"DAE {climate}", color=dae_color, linewidth=1)
 
         # compute MAE ###
@@ -564,7 +564,7 @@ def main():
 
         # print mae
         ax_cal.text(0.99, 0.2,      # x=0.95, y=0.95 in axes coordinates (0-1)
-                r" $\mathrm{QR\ MAE_{cal}}$:" + f" {mae_qr:.3f}",   # text to display
+                r" $\mathrm{QR\ CE}$:" + f" {mae_qr:.3f}",   # text to display
                 transform=ax_cal.transAxes,  # use axes coordinates
                 ha='right',      # horizontal alignment
                 va='top',        # vertical alignment
@@ -573,7 +573,7 @@ def main():
             )
 
         ax_cal.text(0.99, 0.1,      # x=0.95, y=0.95 in axes coordinates (0-1)
-                r"$\mathrm{DAE\ MAE_{cal}}$:" + f" {mae_dae:.3f}",   # text to display
+                r"$\mathrm{DAE\ CE}$:" + f" {mae_dae:.3f}",   # text to display
                 transform=ax.transAxes,  # use axes coordinates
                 ha='right',      # horizontal alignment
                 va='top',        # vertical alignment
@@ -597,11 +597,11 @@ def main():
             )
 
         
-        ax_cal.plot([0, 1], [0, 1], "k--", label="Ideal 1:1", linewidth=1)
+        ax_cal.plot([0, 1], [0, 1], "k--", label="Ideal 1:1", linewidth=0.5)
     
         ax_cal.set_xlabel("Nominal quantile τ", fontsize=8)
         #ax_cal.set_ylabel("Empirical fraction of points \n with y_true ≤ q̂_τ(x)", fontsize=10)
-        ax_cal.set_ylabel("Points in quantile", fontsize=8)
+        ax_cal.set_ylabel("Empirical coverage " + r"$\hat{C}$", fontsize=8)
 
         ax.set_yticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
         ax.set_xticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])

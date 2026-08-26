@@ -47,7 +47,7 @@ def load_test_data(settings_file_path, standardize_predictors=0):
     ### Load Z500 data ###
     z500_path = os.path.join(settings['paths']['data'], settings['paths']['dataset_z500'])
     ds_z500_pre = xr.open_dataset(z500_path) #settings['dataset_z500'])
-    pi_period_mean = ds_z500_pre.pseudo_pcs.isel(mode=1000, time=slice(0,4769)).sel(time=slice("1850","1900")).mean().values
+    pi_period_mean = ds_z500_pre.pseudo_pcs.isel(mode=1000, time=slice(0,4769)).sel(time=slice("1850","1900")).mean().values #extract the mean fGMT in 1850-1900
     print("mean_2028 xarray", ds_z500_pre.pseudo_pcs.isel(mode=1000, time=slice(0,4769)).sel(time="2028"))
     
     mean_2028 = ds_z500_pre.pseudo_pcs.isel(mode=1000, time=slice(0,4769)).sel(time="2028").mean().values
@@ -160,7 +160,7 @@ def load_eth_test_data(settings_file_path, standardize_predictors=0):
 
     return z500, mask_x_te_eth_fact, ds_test_eth_fact, ds_test_eth_cf, x_te_reduced_eth_fact, x_te_reduced_eth_cf, mean_gmt, std_gmt 
 
-def load_era5_test_data(settings_file_path, standardize_predictors=0, standardization_type="inherent"):
+def load_era5_test_data(settings_file_path, standardize_predictors=0, standardization_type="inherent", detrended=False):
     """
     standardization_type: "train_stats" (standardize with train set mean and std) or "inherent" (standardize Era5 inherently)
     """
@@ -194,12 +194,19 @@ def load_era5_test_data(settings_file_path, standardize_predictors=0, standardiz
     
     
     ### Load temperature data ###
-    ds_test_eth_fact_path = os.path.join(settings['paths']['data'], settings['paths']['dataset_trefht_era5_transient'])
-    ds_test_eth_fact = xr.open_dataset(ds_test_eth_fact_path) #(settings['dataset_trefht_eth_transient'])
-    
+    # wrong using original. era5
+    ds_test_eth_fact_dummy_path = os.path.join(settings['paths']['data'], settings['paths']['dataset_trefht_era5_transient']) # this one uses original ERA5 data, is wrong
+    ds_test_eth_fact_dummy = xr.open_dataset(ds_test_eth_fact_dummy_path) #(settings['dataset_trefht_eth_transient'])
+    print("ERA5 ORIG:",ds_test_eth_fact_dummy)
+
+    # should be correct using cesm2 era5-nudged
+    ds_test_eth_fact_path = os.path.join(settings['paths']['data'], settings['paths']['dataset_trefht_era5_fact_nudged']) #"/work2/fl53wumy-ws_new/fl53wumy-fl53wumy-llaae_ws_new-1779067202-1785633601/fl53wumy-llaae_ws_new-1779067202/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/other_data/ERA5_factual_nudged_europe_10percent_masked_TREFHT_JJA.nc"
+    ds_test_eth_fact = xr.open_dataset(ds_test_eth_fact_path).rename({"TSA": "TREFHT"}).transpose("lat", "lon", "time").assign_coords(lat=ds_test_eth_fact_dummy.lat, lon=ds_test_eth_fact_dummy.lon)
+    print("CESM2-ERA5 NUDGE",ds_test_eth_fact)
     
     # transform to torch tensors
-    x_te_eth_fact = ut.data_to_torch(ds_test_eth_fact, "TREFHT")
+    # rename TSA to TREFHT if using CESM2 nudged to ERA5
+    x_te_eth_fact = ut.data_to_torch(ds_test_eth_fact, "TREFHT") # for ERA5
 
     # remove NaNs from data
     x_te_reduced_eth_fact, mask_x_te_eth_fact = ut.remove_nan_columns(x_te_eth_fact)
@@ -222,19 +229,24 @@ def load_era5_test_data(settings_file_path, standardize_predictors=0, standardiz
     # Z500
     
     ### Load Z500 data ###
-    ds_z500_path = os.path.join(settings['paths']['data'], settings['paths']['dataset_z500_era5'])
+    if detrended:
+        ds_z500_path = os.path.join(settings['paths']['data'], settings['paths']['dataset_z500_era5_detrended'])
+    else:
+        ds_z500_path = os.path.join(settings['paths']['data'], settings['paths']['dataset_z500_era5'])
     ds_z500_pre = xr.open_dataset(ds_z500_path) #(settings['dataset_z500_eth_test'])
     
     
     print("ATTENTION: Z500 PC time-series is standardized manually here")
     if standardize_predictors:
-        if standardization_type=="inherent":
+        #if standardization_type=="inherent":
+        if standardization_type in ["inherent", "inherent_detrended"]:
             # old: standardize test set itself
             ds_z500_standardized, _, _ = ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values)
             ds_z500_standardized_dummy, _, _ = ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values, mean = mean_train[:,-1], std = std_train[:,-1])
             ds_z500_standardized[:,-1] = ds_z500_standardized_dummy[:,-1]
 
-        elif standardization_type=="train_stats":
+        #elif standardization_type=="train_stats":
+        elif standardization_type in ["train_stats","train_stats_detrended"]:
             # new and supposingly correct: standardize with train statistics
             ds_z500_standardized, _, _ = ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values, mean_train, std_train)
 
@@ -385,8 +397,20 @@ def create_ensemble(ensemble_type,
         notLE=True
         era5_future_cfs=True
 
+    elif ensemble_type == "ERA5_inherent_detrended":
+        z500_test, mask, ds_test, ds_test_eth_cf, x_te_reduced, x_te_reduced_cf, mean_gmt, std_gmt = load_era5_test_data(settings_file_path, standardize_predictors, detrended=True)
+        _, _, _, _, _, _, _, _, pi_period_mean, mean_2028, mean_2053 = load_test_data(settings_file_path, standardize_predictors)
+        notLE=True
+        era5_future_cfs=True
+
     elif ensemble_type == "ERA5_train_stats":
         z500_test, mask, ds_test, ds_test_eth_cf, x_te_reduced, x_te_reduced_cf, mean_gmt, std_gmt = load_era5_test_data(settings_file_path, standardize_predictors, standardization_type="train_stats")
+        _, _, _, _, _, _, _, _, pi_period_mean, mean_2028, mean_2053 = load_test_data(settings_file_path, standardize_predictors)
+        notLE=True
+        era5_future_cfs=True
+
+    elif ensemble_type == "ERA5_train_stats_detrended":
+        z500_test, mask, ds_test, ds_test_eth_cf, x_te_reduced, x_te_reduced_cf, mean_gmt, std_gmt = load_era5_test_data(settings_file_path, standardize_predictors, standardization_type="train_stats", detrended=True)
         _, _, _, _, _, _, _, _, pi_period_mean, mean_2028, mean_2053 = load_test_data(settings_file_path, standardize_predictors)
         notLE=True
         era5_future_cfs=True
@@ -511,7 +535,7 @@ def create_ensemble(ensemble_type,
     
         
 
-    if ensemble_type in ["ETH", "ERA5_inherent", "ERA5_train_stats"]:
+    if ensemble_type in ["ETH", "ERA5_inherent","ERA5_inherent_detrended", "ERA5_train_stats", "ERA5_train_stats_detrended"]:
         ds_train = "no ds_train present"
 
     return mask, ds_train, ds_test, x_te_reduced

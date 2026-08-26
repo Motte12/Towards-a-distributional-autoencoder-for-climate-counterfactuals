@@ -20,7 +20,7 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import shutil
 import sys
-sys.path.append('../utils')
+sys.path.append('/home/sc.uni-leipzig.de/fl53wumy/llaae_new/TowardsDistributionalAutoencoderClimateCounterfactuals/src/utils')
 import utils as ut
 
 def main():
@@ -30,16 +30,16 @@ def main():
     ##############
     parser = argparse.ArgumentParser(description="Train a model with given hyperparameters.")
     parser.add_argument('--settings_file', type=str, default="../../settings.json", help='Settings file')
-    args, _ = parser.parse_known_args()  # <-- changed from parse_args()
+    #args = parser.parse_args()
+    temp_args, _ = parser.parse_known_args()
+
     # load default settings from settings.json
-    with open(args.settings_file, 'r') as file:
+    # settings
+    with open(temp_args.settings_file, 'r') as file:
         settings = json.load(file)
-    if 'model_parameters' not in settings:
-        print(f"Warning: 'model_parameters' not found in {args.settings_file}, using empty defaults.")
-    model_params = settings.get('model_parameters', {})
-    if 'training_parameters' not in settings:
-        print(f"Warning: 'training_parameters' not found in {args.settings_file}, using empty defaults.")
-    train_params = settings.get('training_parameters', {})
+
+    model_params = settings['model_parameters']
+    train_params = settings['training_parameters']
     
     #####################
     ### add Arguments ###
@@ -48,27 +48,29 @@ def main():
     ## Logistics
 
     ## Model
-    parser.add_argument('--encoder', type=str, default=model_params.get('enc'), help='Use learnable encoder (=neural) or fixed (=PCA)')
-    parser.add_argument('--in_dim', type=int, default=model_params.get('in_dim'), help='Input dimension into encoder')
-    parser.add_argument('--latent_dim', type=int, default=model_params.get('ld'), help='Latent dimension of the DPA')
-    parser.add_argument('--num_layer', type=int, default=model_params.get('nln'), help='Number of layers in encoder and decoder')
-    parser.add_argument('--hidden_dim', type=int, default=model_params.get('hdn'), help='Hidden dims in encoder and decoder')
-    parser.add_argument('--noise_dim_dec', type=int, default=model_params.get('ndd'), help='Dimension of noise added to decoder')
-    parser.add_argument('--resblock', type=int, default=model_params.get('resblock'), help="Whether to use residual block")
+    parser.add_argument('--encoder', type=str, default=model_params['enc'], help='Use learnable encoder (=neural) or fixed (=PCA)')
+    parser.add_argument('--in_dim', type=int, default=model_params['in_dim'], help='Input dimension into encoder')
+    parser.add_argument('--latent_dim', type=int, default=model_params['ld'], help='Latent dimension of the DPA')
+    parser.add_argument('--num_layer', type=int, default=model_params['nln'], help='Number of layers in encoder and decoder')
+    parser.add_argument('--hidden_dim', type=int, default=model_params['hdn'], help='Hidden dims in encoder and decoder')
+    parser.add_argument('--noise_dim_dec', type=int, default=model_params['ndd'], help='Dimension of noise added to decoder')
+    parser.add_argument('--resblock', type=int, default=model_params['resblock'], help="Whether to use residual block")
     
-    parser.add_argument('--in_dim_lm', type=int, default=model_params.get('in_dim_lm'), help="Input dimension of the latent map")
-    parser.add_argument('--noise_dim_lm', type=int, default=model_params.get('ndl'), help='Dimension of noise added in latent map')
-    parser.add_argument('--num_layer_lm', type=int, default=model_params.get('num_layer_lm'), help='Number of layers in latent map')
-    parser.add_argument('--hidden_dim_lm', type=int, default=model_params.get('hdl'), help='Hidden dims in latent map')
+    parser.add_argument('--in_dim_lm', type=int, default=model_params['in_dim_lm'], help="Input dimension of the latent map")
+    parser.add_argument('--noise_dim_lm', type=int, default=model_params['ndl'], help='Dimension of noise added in latent map')
+    parser.add_argument('--num_layer_lm', type=int, default=model_params['num_layer_lm'], help='Number of layers in latent map')
+    parser.add_argument('--hidden_dim_lm', type=int, default=model_params['hdl'], help='Hidden dims in latent map')
+
     ## Training
-    parser.add_argument('--lr', type=float, default=train_params.get('lr'), help='Learning rate')
-    parser.add_argument('--batch_size', type=int, default=train_params.get('batch_size'), help='Batch size')
-    parser.add_argument('--epochs', type=int, default=train_params.get('epochs'), help='Number of training epochs')
-    parser.add_argument('--batch_norm', type=int, default=train_params.get('batch_norm'), help='Whether to use batch normalisation')
+    parser.add_argument('--lr', type=float, default=train_params['lr'], help='Learning rate')
+    parser.add_argument('--batch_size', type=int, default=train_params['batch_size'], help='Batch size')
+    parser.add_argument('--epochs', type=int, default=train_params['epochs'], help='Number of training epochs')
+    parser.add_argument('--batch_norm', type=int, default=train_params['batch_norm'], help='Whether to use batch normalisation')
+
     ## Loss
-    parser.add_argument('--lam', type=float, default=train_params.get('lam'), help="Weight between energy loss in Y and latent space")
-    parser.add_argument('--alpha', type=float, default=train_params.get('alpha'), help="Weight between AE reconstruction energy loss and energy loss of d(lm(X)) in Y ")
-    parser.add_argument('--include_pen_e', type=int, default=train_params.get('include_pen_e'), help='Whether to include KL-like (penalty_e) loss')
+    parser.add_argument('--lam', type=float, default=train_params['lam'], help="Weight between energy loss in Y and latent space")
+    parser.add_argument('--alpha', type=float, default=train_params['alpha'], help="Weight between AE reconstruction energy loss and energy loss of d(lm(X)) in Y ")
+    parser.add_argument('--include_pen_e', type=int, default=train_params['include_pen_e'], help='Whether to include KL-like (penalty_e) loss')
 
     # Parse arguments
     args = parser.parse_args()
@@ -519,6 +521,7 @@ def main():
         ### Save Model ###
         ##################
         if (epoch_idx + 1) % 5 == 0:
+            # only state dict
             if args.encoder == "learnable":
                 torch.save(model_enc.state_dict(), save_dir + "model_enc_" + str(epoch_idx + 1) + ".pt")
             torch.save(model_dec.state_dict(), save_dir + "model_dec_" + str(epoch_idx + 1) + ".pt")

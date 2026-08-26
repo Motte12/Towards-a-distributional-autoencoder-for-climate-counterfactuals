@@ -54,6 +54,9 @@ def main():
     parser.add_argument("--no_test_members", type=int, default=3, help="Number of members in the test set.")
     parser.add_argument("--calculate_e_loss_per_ti", type=int, default=1, help="Whether to calculate energy loss per time step.")
     parser.add_argument("--StoNet_ensemble", type=int, default=0, help="Whether to evaluate StoNet ensemble.")
+    parser.add_argument("--eval_ERA5", type=int, default=0, help="Whether to evaluate ERA5.")
+    parser.add_argument("--domain", type=str, default="FR", help="Domain to use for True-Pred scatterplot.")
+
 
 
     args = parser.parse_args()
@@ -61,16 +64,13 @@ def main():
     time_period = [str(args.period_start), str(args.period_end)]
     
     no_epochs = args.no_epochs
-    
-    ensemble_path = f"{args.ensemble_path}ETH_ensemble_after_{no_epochs}_epochs"
 
-    # save path
-    if args.save_path_le is not None:
-        print("save path LE is given")
-        save_path_le = args.save_path_le
+    if args.eval_ERA5:
+        ensemble_path = f"{args.ensemble_path}"
     else:
-        print("save path LE is not given")
-        save_path_le = f"ETH_analysis_results/final_analysis_train_LE/model_trained_for_{args.no_epochs}_epochs"
+        ensemble_path = f"{args.ensemble_path}ETH_ensemble_after_{no_epochs}_epochs"
+
+    
         
 
     if args.save_path_eth is not None:
@@ -83,13 +83,11 @@ def main():
         
 
     print("save path ETH analysis results:", save_path_eth)
-    print("save path LE analysis results:", save_path_le)
     print("include LE train analysis:", args.include_train_analysis)
     print("ensemble load path:", ensemble_path)
     
     
     os.makedirs(save_path_eth, exist_ok=True)
-    os.makedirs(save_path_le, exist_ok=True)
 
     
     log_file = f"{save_path_eth}/test_log_metrics_{time_period[0]}-{time_period[1]}.txt"
@@ -101,12 +99,10 @@ def main():
     #log_print(log_file, f"\n")
 
 
-    print(f"{save_path_eth}/Germany")
-    print(f"{save_path_eth}/Spain")
     
     # create germany and spain subdirs––±
-    os.makedirs(f"{save_path_eth}/Germany", exist_ok=True)
-    os.makedirs(f"{save_path_eth}/Spain", exist_ok=True)
+    #os.makedirs(f"{save_path_eth}/Germany", exist_ok=True)
+    #os.makedirs(f"{save_path_eth}/Spain", exist_ok=True)
     os.makedirs(f"{save_path_eth}/quantiles", exist_ok=True)
     os.makedirs(f"{save_path_eth}/data", exist_ok=True)
     
@@ -150,8 +146,13 @@ def main():
     print(ds)
     #print("x_te_reduced shape:", x_te_reduced.shape)
 
+    # ERA5 data
+    if args.eval_ERA5:
+        z500, mask_x_te_eth_fact, ds_test_eth_fact, ds_test_eth_cf, x_te_reduced_eth_fact, x_te_reduced_eth_cf, _, _ = de.load_era5_test_data(args.settings_file_path)
+        
     # ETH Ensemble Test data
-    z500, mask_x_te_eth_fact, ds_test_eth_fact, ds_test_eth_cf, x_te_reduced_eth_fact, x_te_reduced_eth_cf, _, _ = de.load_eth_test_data(args.settings_file_path)
+    else:
+        z500, mask_x_te_eth_fact, ds_test_eth_fact, ds_test_eth_cf, x_te_reduced_eth_fact, x_te_reduced_eth_cf, _, _ = de.load_eth_test_data(args.settings_file_path)
     # z500                  -> test predictors
     # mask_x_te_eth_fact    -> land mask
     # ds_test_eth_fact      -> factual test temperatures (xarray dataset) lat: 32, lon: 32, time: 14307
@@ -273,6 +274,273 @@ def main():
         dpa_1500_cf_restored = dpa_ensemble_restored_cf.TREFHT.isel(time=slice(-slice_end_index,14307)).sel(time=slice(time_period[0], time_period[1]))
     
     
+
+    #####################
+    ### Scatter data ####
+    #####################
+    print("#################")
+    print("### Test data ###")
+    print("#################")
+    print("ds_test_eth_fact:", ds_test_eth_fact)
+    print("ds_test_eth_cf:", ds_test_eth_cf)
+
+    print("################")
+    print("### DAE data ###")
+    print("################")
+    print("dpa_ensemble_fact_restored:", dpa_ensemble_fact_restored)
+    print("dpa_ensemble_restored_cf:", dpa_ensemble_restored_cf)
+
+    if True:
+        ###################
+        ### Domain avg. ###
+        ###################
+    
+        # Domain 
+        if args.domain == "GER":
+            # GER
+            lat_min = 48
+            lat_max = 54
+            lon_min = 6
+            lon_max = 15
+    
+        elif args.domain == "FR":
+            # FR
+            lat_min = 45
+            lat_max = 50
+            lon_min= 0
+            lon_max= 5
+    
+        elif args.domain == "SP":
+            lat_min = 38
+            lat_max = 42
+            lon_min = -8
+            lon_max = 0
+    
+        # --- Factual ---
+        true_fact_mean = ut.get_ger_1d_data(ds_test_eth_fact["TREFHT"], lat_min, lat_max, lon_min, lon_max)          # dims: (time,)
+        dae_fact_mean = ut.get_ger_1d_data(dpa_ensemble_fact_restored["TREFHT"], lat_min, lat_max, lon_min, lon_max) # dims: (ensemble_member, time)
+        
+        # --- Counterfactual ---
+        true_cf_mean = ut.get_ger_1d_data(ds_test_eth_cf["TREFHT"], lat_min, lat_max, lon_min, lon_max)
+        dae_cf_mean = ut.get_ger_1d_data(dpa_ensemble_restored_cf["TREFHT"], lat_min, lat_max, lon_min, lon_max)
+        
+        # take DAE ensemble median across members to compare against single truth
+        dae_fact_mean_ensmean = dae_fact_mean.median(dim="ensemble_member", skipna=True)
+        dae_cf_mean_ensmean = dae_cf_mean.median(dim="ensemble_member", skipna=True)
+
+        # save data
+        ds_domain = xr.Dataset(
+            {
+                "true_fact_mean": ("time", true_fact_mean.values),
+                "dae_fact_mean_ensmedian": ("time", dae_fact_mean_ensmean.values),
+                "true_cf_mean": ("time_cf", true_cf_mean.values),
+                "dae_cf_mean_ensmedian": ("time_cf", dae_cf_mean_ensmean.values),
+            },
+            coords={
+                "time": true_fact_mean.time.values,
+                "time_cf": true_cf_mean.time.values,
+            },
+            attrs={
+                "domain": args.domain,
+                "lat_min": lat_min,
+                "lat_max": lat_max,
+                "lon_min": lon_min,
+                "lon_max": lon_max,
+            },
+        )
+        
+        ds_domain.to_netcdf(f"{save_path_eth}/data/domain_mean_{args.domain}.nc")
+        
+        # --- Scatter plot: true vs predicted ---
+        fig, ax = plt.subplots(figsize=(7, 7))
+        
+        ax.scatter(true_fact_mean.values, dae_fact_mean_ensmean.values,
+                   alpha=0.5, s=15, color="tab:orange", label="Factual")
+        ax.scatter(true_cf_mean.values, dae_cf_mean_ensmean.values,
+                   alpha=0.5, s=15, color="tab:blue", label="Counterfactual")
+        
+        # 1:1 reference line
+        lims = [
+            min(ax.get_xlim()[0], ax.get_ylim()[0]),
+            max(ax.get_xlim()[1], ax.get_ylim()[1]),
+        ]
+        ax.plot(lims, lims, "k--", linewidth=1, label="1:1 line")
+        ax.set_xlim(lims)
+        ax.set_ylim(lims)
+        
+        ax.set_xlabel("True domain mean (CESM2)")
+        ax.set_ylabel("Predicted domain mean (DAE ensemble mean)")
+        ax.legend()
+        ax.grid(alpha=0.3)
+        ax.set_aspect("equal")
+        
+        plt.tight_layout()
+        #plt.savefig(f"true_vs_predicted_scatter_{args.domain}_domain.pdf")
+        
+    #############################
+    ### Individual grid cells ###
+    #############################
+
+    if True:
+        def ensemble_median_nan_safe(da, dim="ensemble_member"):
+            """Compute median across ensemble members, skipping NaNs."""
+            return da.median(dim=dim, skipna=True)
+        
+        # --- Factual ---
+        dae_fact_median = ensemble_median_nan_safe(dpa_ensemble_fact_restored["TREFHT"])  # dims: (lat, lon, time)
+        true_fact = ds_test_eth_fact["TREFHT"].transpose("time", "lat", "lon").assign_coords(time=dae_fact_median.time)                      # dims: (lat, lon, time)
+        print("dae_fact_median.shape:", dae_fact_median.shape)
+        
+        # --- Counterfactual ---
+        true_cf = ds_test_eth_cf["TREFHT"]
+        dae_cf_median = ensemble_median_nan_safe(dpa_ensemble_restored_cf["TREFHT"])
+        print("dae_cf_median.shape", dae_cf_median.shape)
+        
+        # --- Flatten to 1D, dropping NaNs pairwise ---
+        def flatten_pair_dropna(true_da, pred_da):
+            t = true_da.values.ravel()
+            p = pred_da.values.ravel()
+            mask = ~np.isnan(t) & ~np.isnan(p)
+            return t[mask], p[mask]
+        
+        true_fact_flat, dae_fact_flat = flatten_pair_dropna(true_fact, dae_fact_median)
+        true_cf_flat, dae_cf_flat = flatten_pair_dropna(true_cf, dae_cf_median)
+    
+    
+        def r2_per_gridcell(true_da, pred_da):
+            """
+            Compute R^2 per grid cell (lat, lon), reducing over the time dimension.
+            Returns a 2D DataArray of shape (lat, lon).
+            """
+            residual = true_da - pred_da
+            ss_res = (residual ** 2).sum(dim="time", skipna=True)
+            ss_tot = ((true_da - true_da.mean(dim="time", skipna=True)) ** 2).sum(dim="time", skipna=True)
+            r2 = 1 - ss_res / ss_tot
+            return r2
+        
+        # --- Compute per-gridcell R^2 (using factual data) ---
+        print("true_fact:", true_fact)
+        print("dae_fact_median:", dae_fact_median)
+        #sys.exit()
+        r2_map = r2_per_gridcell(true_fact, dae_fact_median)  # dims: (lat, lon)
+        print("r2_map shape:", r2_map.shape)
+        
+        r2_flat = r2_map.values.ravel()
+        valid_mask = ~np.isnan(r2_flat)
+        r2_valid = r2_flat[valid_mask]
+        
+        # --- Find R^2 values at 20th and 50th percentiles ---
+        p20_val = np.percentile(r2_valid, 20)
+        p50_val = np.percentile(r2_valid, 50)
+        
+        # find the grid cell whose R^2 is CLOSEST to each target percentile value
+        def closest_gridcell_to_value(r2_map, target_value):
+            diff = np.abs(r2_map.values - target_value)
+            diff_flat = diff.ravel()
+            diff_flat[np.isnan(diff_flat)] = np.inf  # ignore NaNs
+            idx_flat = np.argmin(diff_flat)
+            idx_2d = np.unravel_index(idx_flat, r2_map.shape)  # (lat_idx, lon_idx)
+            return idx_2d
+
+        # grid cells at 20th and 50th percentiles
+        idx_p20 = closest_gridcell_to_value(r2_map, p20_val)
+        idx_p50 = closest_gridcell_to_value(r2_map, p50_val)
+        
+        # best grid cell = argmax R^2
+        r2_no_nan = np.nan_to_num(r2_map.values, nan=-np.inf)
+        idx_best = np.unravel_index(np.argmax(r2_no_nan), r2_map.shape)
+        
+        # get lat/lon coordinate values for labeling
+        def latlon_at_idx(idx):
+            lat_val = r2_map.lat.values[idx[0]]
+            lon_val = r2_map.lon.values[idx[1]]
+            return lat_val, lon_val
+        
+        lat_p20, lon_p20 = latlon_at_idx(idx_p20)
+        lat_p50, lon_p50 = latlon_at_idx(idx_p50)
+        lat_best, lon_best = latlon_at_idx(idx_best)
+        
+        print(f"20th pct grid cell: lat={lat_p20:.2f}, lon={lon_p20:.2f}, R²={r2_map.values[idx_p20]:.3f}")
+        print(f"50th pct grid cell: lat={lat_p50:.2f}, lon={lon_p50:.2f}, R²={r2_map.values[idx_p50]:.3f}")
+        print(f"Best grid cell:     lat={lat_best:.2f}, lon={lon_best:.2f}, R²={r2_map.values[idx_best]:.3f}")
+        
+        # --- Extract true/predicted time series (factual) at each selected grid cell ---
+        def gridcell_series(true_da, pred_da, idx):
+            t = true_da.isel(lat=idx[0], lon=idx[1]).values
+            p = pred_da.isel(lat=idx[0], lon=idx[1]).values
+            mask = ~np.isnan(t) & ~np.isnan(p)
+            return t[mask], p[mask]
+        
+        t_p20, p_p20 = gridcell_series(true_fact, dae_fact_median, idx_p20)
+        t_p50, p_p50 = gridcell_series(true_fact, dae_fact_median, idx_p50)
+        t_best, p_best = gridcell_series(true_fact, dae_fact_median, idx_best)
+        
+        # --- Extract true/predicted time series (counterfactual) at the SAME grid cells ---
+        t_p20_cf, p_p20_cf = gridcell_series(true_cf, dae_cf_median, idx_p20)
+        t_p50_cf, p_p50_cf = gridcell_series(true_cf, dae_cf_median, idx_p50)
+        t_best_cf, p_best_cf = gridcell_series(true_cf, dae_cf_median, idx_best)
+
+        # save data
+        ds_out = xr.Dataset(
+            {
+                "true_fact_p20": ("obs_p20", t_p20),
+                "pred_fact_p20": ("obs_p20", p_p20),
+                "true_fact_p50": ("obs_p50", t_p50),
+                "pred_fact_p50": ("obs_p50", p_p50),
+                "true_fact_best": ("obs_best", t_best),
+                "pred_fact_best": ("obs_best", p_best),
+        
+                "true_cf_p20": ("obs_p20_cf", t_p20_cf),
+                "pred_cf_p20": ("obs_p20_cf", p_p20_cf),
+                "true_cf_p50": ("obs_p50_cf", t_p50_cf),
+                "pred_cf_p50": ("obs_p50_cf", p_p50_cf),
+                "true_cf_best": ("obs_best_cf", t_best_cf),
+                "pred_cf_best": ("obs_best_cf", p_best_cf),
+            },
+            coords={
+                "lat_p20": lat_p20, "lon_p20": lon_p20, "r2_p20": r2_map.values[idx_p20],
+                "lat_p50": lat_p50, "lon_p50": lon_p50, "r2_p50": r2_map.values[idx_p50],
+                "lat_best": lat_best, "lon_best": lon_best, "r2_best": r2_map.values[idx_best],
+            },
+        )
+        
+        ds_out.to_netcdf(f"{save_path_eth}/data/percentile_selected_gridcells_fact_cf.nc")
+
+
+        # --- Plot: 3 panels side by side, fact (orange) + cf (blue) ---
+        fig, axes = plt.subplots(1, 3, figsize=(18, 6))
+        
+        panels = [
+            (axes[0], t_p20, p_p20, t_p20_cf, p_p20_cf,
+             f"20th percentile cell\n(lat={lat_p20:.1f}, lon={lon_p20:.1f}, R²={r2_map.values[idx_p20]:.3f})"),
+            (axes[1], t_p50, p_p50, t_p50_cf, p_p50_cf,
+             f"Median (50th pct) cell\n(lat={lat_p50:.1f}, lon={lon_p50:.1f}, R²={r2_map.values[idx_p50]:.3f})"),
+            (axes[2], t_best, p_best, t_best_cf, p_best_cf,
+             f"Best cell\n(lat={lat_best:.1f}, lon={lon_best:.1f}, R²={r2_map.values[idx_best]:.3f})"),
+        ]
+        
+        for ax, t, p, t_cf, p_cf, title in panels:
+            ax.scatter(t, p, alpha=0.3, s=8, color="tab:orange", label="Factual")
+            ax.scatter(t_cf, p_cf, alpha=0.3, s=8, color="tab:blue", label="Counterfactual")
+        
+            lims = [
+                min(t.min(), p.min(), t_cf.min(), p_cf.min()),
+                max(t.max(), p.max(), t_cf.max(), p_cf.max()),
+            ]
+            ax.plot(lims, lims, "k--", linewidth=1, label="1:1 line")
+            ax.set_xlim(lims)
+            ax.set_ylim(lims)
+            ax.set_xlabel("True (CESM2)")
+            ax.set_ylabel("Predicted (DAE ensemble median)")
+            ax.set_title(title)
+            ax.legend(fontsize=8)
+            ax.grid(alpha=0.3)
+            ax.set_aspect("equal")
+        
+        #plt.tight_layout()
+        #plt.savefig("true_vs_predicted_scatter_percentile_gridcells_factcf.pdf")
+        plt.show()
+
     #############
     #############
     #############
@@ -433,16 +701,22 @@ def main():
     ###########
 
     mae_1300_fact = evaluation.mae_cols(eth_fact_1300_test_reduced, dpa_ens_mean_fact_1300_raw_pt, dim=0)
-    mae_1400_fact = evaluation.mae_cols(eth_fact_1400_test_reduced, dpa_ens_mean_fact_1400_raw_pt, dim=0)
-    mae_1500_fact = evaluation.mae_cols(eth_fact_1500_test_reduced, dpa_ens_mean_fact_1500_raw_pt, dim=0)
+    if args.no_test_members > 1:
+        mae_1400_fact = evaluation.mae_cols(eth_fact_1400_test_reduced, dpa_ens_mean_fact_1400_raw_pt, dim=0)
+        mae_1500_fact = evaluation.mae_cols(eth_fact_1500_test_reduced, dpa_ens_mean_fact_1500_raw_pt, dim=0)
 
     mae_1300_cf = evaluation.mae_cols(eth_cf_1300_test_reduced, dpa_ens_mean_cf_1300_raw_pt, dim=0)
-    mae_1400_cf = evaluation.mae_cols(eth_cf_1400_test_reduced, dpa_ens_mean_cf_1400_raw_pt, dim=0)
-    mae_1500_cf = evaluation.mae_cols(eth_cf_1500_test_reduced, dpa_ens_mean_cf_1500_raw_pt, dim=0)
+    if args.no_test_members > 1:
+        mae_1400_cf = evaluation.mae_cols(eth_cf_1400_test_reduced, dpa_ens_mean_cf_1400_raw_pt, dim=0)
+        mae_1500_cf = evaluation.mae_cols(eth_cf_1500_test_reduced, dpa_ens_mean_cf_1500_raw_pt, dim=0)
 
     # concatenate
-    all_mae_fact = torch.cat((mae_1300_fact, mae_1400_fact, mae_1500_fact), dim=0)
-    all_mae_cf = torch.cat((mae_1300_cf, mae_1400_cf, mae_1500_cf), dim=0)
+    if args.no_test_members > 1:
+        all_mae_fact = torch.cat((mae_1300_fact, mae_1400_fact, mae_1500_fact), dim=0)
+        all_mae_cf = torch.cat((mae_1300_cf, mae_1400_cf, mae_1500_cf), dim=0)
+    else:
+        all_mae_fact = mae_1300_fact.clone()
+        all_mae_cf = mae_1300_cf.clone()
 
     # save MAE arrays for later evaluation
     # f"{save_path_eth}/data/

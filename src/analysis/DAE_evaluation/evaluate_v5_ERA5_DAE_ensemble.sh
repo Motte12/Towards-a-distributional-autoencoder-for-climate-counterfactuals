@@ -1,22 +1,25 @@
 #!/bin/bash
 
+
+
 source ~/.bashrc
 eval "$(conda shell.bash hook)"
 conda activate dpa # insert the name of your own conda environment here
 
-
+# === Shared configuration ===
 # configuration
-global_settings="../../settings.json"
+global_settings="../../../settings.json"
 MODEL_PATH=$(jq -r '.paths.output_dir' "$global_settings") # path of the trained model
 NO_EPOCHS=$(jq -r '.epochs' "$global_settings") # specify the model you want to use in terms of its training epochs
 ENS_MEMBERS=$(jq -r '.no_ens_members' "$global_settings") # number of ensemble members to generate, code is not robust to any changes of this number
 
 
-#MODEL_PATH="../../" # if using pre-trained model from repository root directory
-#MODEL="_devicecuda100_6_100_100_1001_20_2_50_encoderislearnable_lambda0.5_alpha1.5_bs128_bnisFalse_lr0.0001_pene0" # folder that contains the trained models, adjust if necessary
+
 MODEL=$(jq -r '.current_model' "$global_settings")
 echo "using model: $MODEL $NO_EPOCHS $ENS_MEMBERS"
 
+
+results_save_comment_eth=""
 # specify path to save generated ensemble
 save_path="${MODEL_PATH}/${MODEL}" 
 echo "savepath: $save_path"
@@ -53,32 +56,44 @@ out_activation=$(jq -r '.out_activation // empty' "$cfg")
 resblock=$(jq -r '.resblock' "$cfg")
 settings_file=$(jq -r '.settings_file' "$cfg")
 
-# create test ensemble
-# for ensemble type, choose one of:
-# "ERA5_inherent"
-# "ERA5_train_stats"
-# "ERA5_train_stats_detrended"
-# "ERA5_inherent_detrended"
+##########################
+# could insert creation of ensembles here
 
-python create_test_ensemble.py \
-    --ens_members $ENS_MEMBERS \
-    --ensemble_type "ERA5_train_stats" \
-    --save_path_ensemble_single $ensemble_save_path_eth \
-    --model_path "$MODEL_PATH/${MODEL}" \
-    --encoder_model $ENCODER \
-    --decoder_model $DECODER \
-    --latent_map_model $LATENT_MAP \
-    --no_epochs $NO_EPOCHS \
-    --standardize_predictors 1 \
-    --autoencode_only 0 \
-    --latent_dim $latent_dim \
-    --hidden_dim $hidden_dim \
-    --num_layers $num_layer \
-    --noise_dim_dec $noise_dim_dec \
-    --hidden_dim_lm $hidden_dim_lm \
-    --noise_dim_lm $noise_dim_lm \
-    --lambd $lam \
-    --bs $batch_size \
-    --bn $batch_norm \
-    --settings_file_path $global_settings &
-wait
+
+
+
+
+# run the analysis
+period_start_years=(1850)
+period_end_years=(2100)
+
+for i in "${!period_start_years[@]}"; do
+    start=${period_start_years[$i]}
+    end=${period_end_years[$i]}
+
+    echo "Running analysis for period ${start}-${end}"
+    echo "Epochs: ${NO_EPOCHS}"
+
+    # for ensemble type, choose one of:
+    #era5_ens_type="ERA5_inherent"
+    #era5_ens_type="ERA5_inherent_detrended"
+    era5_ens_type="ERA5_train_stats"
+    #era5_ens_type="ERA5_train_stats_detrended"
+    
+    python analysis_results_sheet_ETH_master_slim.py \
+        --period_start $start \
+        --period_end $end \
+        --ensemble_path "${ensemble_save_path_eth}/${era5_ens_type}_ensemble_after_${NO_EPOCHS}_epochs" \
+        --no_epochs $NO_EPOCHS \
+        --ens_members $ENS_MEMBERS \
+        --calculate_e_loss_per_ti 0 \
+        --StoNet_ensemble 0 \
+        --save_path_eth "ERA5_analysis_results/final_analysis_${era5_ens_type}_test_set/model_${MODEL}/trained_for_${NO_EPOCHS}_epochs_${results_save_comment_eth}" \
+        --settings_file_path $global_settings \
+        --no_test_members 1 \
+        --eval_ERA5 1 \
+        --domain "FR" \
+        --include_train_analysis 0 
+
+done
+
