@@ -1,6 +1,6 @@
 # Towards-a-distributional-autoencoder-for-climate-counterfactuals
 
-This repository contains code to reproduce the results for [Probabilistic storyline attribution using machine learning](https://arxiv.org/abs/2606.02550) and for the extended abstract *Towards a distributional autoencoder for climate counterfactuals* submitted to the Climate Informatics 2026 conference.
+This repository contains code to reproduce the results for [Probabilistic storyline attribution using machine learning](https://arxiv.org/abs/2606.02550).
 
 ## Repository Structure
 
@@ -38,46 +38,36 @@ Towards-a-distributional-autoencoder-for-climate-counterfactuals/
 ```
 
 
-## Instructions
+## Workflow to reproduce the manuscript figures
 
+0. Code and data setup
+    - clone this repository
+    - get the data from ...
+    - in `settings.json` adjust the paths to the data folder 
+2. Create a conda environement using the environment.yaml file ([explained here](https://docs.conda.io/projects/conda/en/stable/user-guide/tasks/manage-environments.html#creating-an-environment-from-a-file))
+3. Either reproduce the exact results from the paper (directly jump to step 7) or train the models from scratch (continue with step 4, note that results will slightly differ from the paper due to stochasticity)
+---
+(trainig from scratch)
 
-### Data setup
-- get the training and test data from [Zenodo](https://zenodo.org/records/20528977)
-- create a data directory (arbitrary name) and put the data there (don't change names of the datasets)
-- insert the data directory name into `settings.json` in `['paths']['data']`
-- adjust the paths in settings.json
-
-### Reproducing the manuscript figures
-
-
-### Workflow to reproduce the extended abstract figure
-
-0. Get the data ready
-1. create a conda environement using the environment.yaml file ([explained here](https://docs.conda.io/projects/conda/en/stable/user-guide/tasks/manage-environments.html#creating-an-environment-from-a-file))
-2. ajdust `["paths"]["data"]` and `["paths"]["output_dir"]` in `settings.json`
-3. Train the model (or skip this, directly go to step 4 and use the pretrained model provided in _devicecpu100_6_100_100_1001_100_2_50_encoderislearnable_lambda0.5_alpha1.0_bs128_bnisFalse_lr0, you still need to copy this model folder into the directory that you put in `["paths"]["output_dir"]` in `settings.json`)
-   - if training your own model, change the python path in `start_joint_training.sh`
-   - start model training by executing start_joint_training.sh
-   - adjust corresponding paths in `settings.json` ("current_model" and "epochs")
-4. Create an ensemble
+4. Train the DAE model from scratch
+   - start model training by running start_joint_training.sh
+   - (optional: set your own model and training parameters, then also adjust `["current_model"]` and `["epochs"]` in `settings.json`) 
+5. Generate factual and counterfactual ensembles
    - in `src/modeling/create_ensemble.sh`, adjust
        - the conda envrionment name in line 5 to the name of your conda environment
    - optional
        - adjust location for saving the generated ensemble `save_path=` (default is in the model directory)
-       - adjust the last command (around lines 59-61) if you want to use slurm
    - execute `create_ensemble.sh` and `create_ERA5_test_ensemble.sh` to create the test and ERA5 ensembles (potentially need to make it executable before `chmod +x create_ensemble.sh`) (use slurm depending on your resources)
-5. Extended abstract figure: `extended_abstract_figure.ipynb`
-   - potentially adjust `dae_ensemble_fact` and `dae_ensemble_cf`
-   - run the notebook
-6. Manuscript figures
+6. Train the baseline quantile regression models by submitting  `src/analysis/quantile_regression/submit_pytorch_quantile_regression.sh`, this executes `src/analysis/quantile_regression/pytorch_quantile_regression.py`
+---
+7. Manuscript figures
     - **Figure 2**
-        + run `src/analysis/DAE_evaluation/evaluate_v5_ETH_DAE_ensemble.sh` to produce data
-        + run `src/analysis/DAE_evaluation/plot_data.ipynb`to create Figure 2
+        + run `src/analysis/DAE_evaluation/evaluate_v5_ETH_DAE_ensemble.sh` to produce data (change line 5 to your environment)
+        + run `src/analysis/DAE_evaluation/plot_data.ipynb` to create Figure 2
     - **Figure 3**
-        + first, train the baseline quantile regression models by submitting  `src/analysis/quantile_regression/submit_pytorch_quantile_regression.sh`, this executes `src/analysis/quantile_regression/pytorch_quantile_regression.py`
         + for subplots a) and c), run `src/analysis/Figure03.ipynb` (`src/analysis/Figure03_CF.ipynb` respectively)
         + for subplots b) and d)
-            + run `src/analysis/quantile_regression/run_baseline_evaluation.sh` (runs `src/analysis/quantile_regression/evaluate_pytorch_quantile_regression.py`) (you might need to make sure that the path in `src/analysis/quantile_regression/run_baseline_evaluation.sh` line 43 corresponds to the paths where the QR baseline is saved)
+            + run `src/analysis/quantile_regression/run_baseline_evaluation.sh` (runs `src/analysis/quantile_regression/evaluate_pytorch_quantile_regression.py`) (again change line 5 to your environment and check that path in `src/analysis/quantile_regression/run_baseline_evaluation.sh` line 43 corresponds to the paths where the QR baseline is saved)
             + this produces calibration curves in the subfolder '/src/analysis/quantile_regression/qr_baseline_eval_results'
     - **Figure 4**
         + run `src/analysis/2028_2053_ERA5_attribution_analysis.ipynb`

@@ -62,7 +62,7 @@ settings_file=$(jq -r '.settings_file' "$cfg")
 
 python create_test_ensemble.py \
     --ens_members $ENS_MEMBERS \
-    --ensemble_type "ERA5_train_stats" \
+    --ensemble_type "ERA5_inherent_detrended" \
     --save_path_ensemble_single $ensemble_save_path_eth \
     --model_path "$MODEL_PATH/${MODEL}" \
     --encoder_model $ENCODER \

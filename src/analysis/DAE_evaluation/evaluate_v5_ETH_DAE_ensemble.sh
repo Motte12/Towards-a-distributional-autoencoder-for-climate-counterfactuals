@@ -1,7 +1,5 @@
 #!/bin/bash
 
-
-
 source ~/.bashrc
 eval "$(conda shell.bash hook)"
 conda activate dpa # insert the name of your own conda environment here

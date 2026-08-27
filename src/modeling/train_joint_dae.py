@@ -30,52 +30,38 @@ def main():
     ##############
     parser = argparse.ArgumentParser(description="Train a model with given hyperparameters.")
     parser.add_argument('--settings_file', type=str, default="../../settings.json", help='Settings file')
-    args, _ = parser.parse_known_args()  # <-- changed from parse_args()
-    # load default settings from settings.json
-    with open(args.settings_file, 'r') as file:
-        settings = json.load(file)
-    if 'model_parameters' not in settings:
-        print(f"Warning: 'model_parameters' not found in {args.settings_file}, using empty defaults.")
-    model_params = settings.get('model_parameters', {})
-    if 'training_parameters' not in settings:
-        print(f"Warning: 'training_parameters' not found in {args.settings_file}, using empty defaults.")
-    train_params = settings.get('training_parameters', {})
-    
-    #####################
-    ### add Arguments ###
-    #####################
-
-    ## Logistics
 
     ## Model
-    parser.add_argument('--encoder', type=str, default=model_params.get('enc'), help='Use learnable encoder (=neural) or fixed (=PCA)')
-    parser.add_argument('--in_dim', type=int, default=model_params.get('in_dim'), help='Input dimension into encoder')
-    parser.add_argument('--latent_dim', type=int, default=model_params.get('ld'), help='Latent dimension of the DPA')
-    parser.add_argument('--num_layer', type=int, default=model_params.get('nln'), help='Number of layers in encoder and decoder')
-    parser.add_argument('--hidden_dim', type=int, default=model_params.get('hdn'), help='Hidden dims in encoder and decoder')
-    parser.add_argument('--noise_dim_dec', type=int, default=model_params.get('ndd'), help='Dimension of noise added to decoder')
-    parser.add_argument('--resblock', type=int, default=model_params.get('resblock'), help="Whether to use residual block")
+    parser.add_argument('--encoder', type=str, help='Use learnable encoder (=neural) or fixed (=PCA)')
+    parser.add_argument('--in_dim', type=int, help='Input dimension into encoder')
+    parser.add_argument('--latent_dim', type=int, help='Latent dimension of the DPA')
+    parser.add_argument('--num_layer', type=int, help='Number of layers in encoder and decoder')
+    parser.add_argument('--hidden_dim', type=int, help='Hidden dims in encoder and decoder')
+    parser.add_argument('--noise_dim_dec', type=int, help='Dimension of noise added to decoder')
+    parser.add_argument('--resblock', type=int, help="Whether to use residual block")
     
-    parser.add_argument('--in_dim_lm', type=int, default=model_params.get('in_dim_lm'), help="Input dimension of the latent map")
-    parser.add_argument('--noise_dim_lm', type=int, default=model_params.get('ndl'), help='Dimension of noise added in latent map')
-    parser.add_argument('--num_layer_lm', type=int, default=model_params.get('num_layer_lm'), help='Number of layers in latent map')
-    parser.add_argument('--hidden_dim_lm', type=int, default=model_params.get('hdl'), help='Hidden dims in latent map')
+    parser.add_argument('--in_dim_lm', type=int, help="Input dimension of the latent map")
+    parser.add_argument('--noise_dim_lm', type=int, help='Dimension of noise added in latent map')
+    parser.add_argument('--num_layer_lm', type=int, help='Number of layers in latent map')
+    parser.add_argument('--hidden_dim_lm', type=int, help='Hidden dims in latent map')
     ## Training
-    parser.add_argument('--lr', type=float, default=train_params.get('lr'), help='Learning rate')
-    parser.add_argument('--batch_size', type=int, default=train_params.get('batch_size'), help='Batch size')
-    parser.add_argument('--epochs', type=int, default=train_params.get('epochs'), help='Number of training epochs')
-    parser.add_argument('--batch_norm', type=int, default=train_params.get('batch_norm'), help='Whether to use batch normalisation')
+    parser.add_argument('--lr', type=float, help='Learning rate')
+    parser.add_argument('--batch_size', type=int, help='Batch size')
+    parser.add_argument('--epochs', type=int, help='Number of training epochs')
+    parser.add_argument('--batch_norm', type=int, help='Whether to use batch normalisation')
     ## Loss
-    parser.add_argument('--lam', type=float, default=train_params.get('lam'), help="Weight between energy loss in Y and latent space")
-    parser.add_argument('--alpha', type=float, default=train_params.get('alpha'), help="Weight between AE reconstruction energy loss and energy loss of d(lm(X)) in Y ")
-    parser.add_argument('--include_pen_e', type=int, default=train_params.get('include_pen_e'), help='Whether to include KL-like (penalty_e) loss')
+    parser.add_argument('--lam', type=float, help="Weight between energy loss in Y and latent space")
+    parser.add_argument('--alpha', type=float, help="Weight between AE reconstruction energy loss and energy loss of d(lm(X)) in Y ")
+    parser.add_argument('--include_pen_e', type=int, help='Whether to include KL-like (penalty_e) loss')
 
     # Parse arguments
     args = parser.parse_args()
-    #settings_file_path = args.settings_file
+    with open(args.settings_file, 'r') as file:
+        settings = json.load(file)
     print("settings_file:", args.settings_file)
     print("args:", args)
 
+    # remaining fixed settings
     out_act = None 
     beta=1
 

@@ -195,7 +195,7 @@ def load_era5_test_data(settings_file_path, standardize_predictors=0, standardiz
     
     ### Load temperature data ###
     # wrong using original. era5
-    ds_test_eth_fact_dummy_path = os.path.join(settings['paths']['data'], settings['paths']['dataset_trefht_era5_transient']) # this one uses original ERA5 data, is wrong
+    ds_test_eth_fact_dummy_path = os.path.join(settings['paths']['data'], settings['paths']['dataset_trefht_era5_transient']) # this one uses original ERA5 data
     ds_test_eth_fact_dummy = xr.open_dataset(ds_test_eth_fact_dummy_path) #(settings['dataset_trefht_eth_transient'])
     print("ERA5 ORIG:",ds_test_eth_fact_dummy)
 
