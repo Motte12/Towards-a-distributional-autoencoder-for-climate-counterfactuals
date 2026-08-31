@@ -4,8 +4,6 @@ import numpy as np
 from torch.utils.data import TensorDataset, DataLoader
 import xarray as xr
 import json
-#from joblib import Parallel, delayed
-#import multiprocessing
 import os
 import sys
 import csv 
@@ -87,7 +85,7 @@ def train_multi_quantile_regression_and_save(
     JSON with all important parameters for reproducibility.
     """
 
-    # --- optional seed for reproducibility ---
+    # optional: seed for reproducibility
     if random_seed is not None:
         torch.manual_seed(random_seed)
         if torch.cuda.is_available():
@@ -129,7 +127,7 @@ def train_multi_quantile_regression_and_save(
         writer = csv.writer(f)
         writer.writerow(["epoch", "train_loss", "val_loss"])
 
-    # --- prepare global metadata (we'll fill some fields later) ---
+    # global metadata
     metadata = {
         "timestamp": datetime.now().isoformat(),
         "model_class": "LinearMultiQuantileRegressor",
@@ -161,7 +159,7 @@ def train_multi_quantile_regression_and_save(
     last_val_loss = None
 
     for epoch in range(n_epochs):
-        # --- TRAIN ---
+        # train
         model.train()
         running_train_loss = 0.0
 
@@ -181,7 +179,7 @@ def train_multi_quantile_regression_and_save(
 
         train_loss = running_train_loss / n_samples
 
-        # --- VALIDATION ---
+        # validation
         if val_loader is not None:
             model.eval()
             running_val_loss = 0.0
@@ -256,73 +254,6 @@ def train_multi_quantile_regression_and_save(
     return model
 
 
-
-
-def initial_train_multi_quantile_regression(
-    X: torch.Tensor,
-    y: torch.Tensor,
-    quantiles=(0.1, 0.5, 0.9),
-    delta: float = 1e-4,
-    batch_size: int = 4096,
-    lr: float = 1e-3,
-    n_epochs: int = 10,
-    device: str = None,
-    lambda_monotonic: float = 0.0,  # optional penalty (see below)
-    ):
-    """
-    X: (n_samples, n_features) float32 tensor
-    y: (n_samples,) or (n_samples, 1) float32 tensor
-    quantiles: iterable of τ's, e.g. (0.1, 0.5, 0.9)
-    """
-
-    if device is None:
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"Using device: {device}")
-
-    X = X.to(device)
-    y = y.to(device).view(-1)
-
-    n_samples, n_features = X.shape
-    n_quantiles = len(quantiles)
-
-    dataset = TensorDataset(X, y)
-    loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=False)
-
-    model = LinearMultiQuantileRegressor(n_features, n_quantiles).to(device)
-    criterion = SmoothMultiQuantileLoss(quantiles, delta=delta).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-
-    model.train()
-    for epoch in range(n_epochs):
-        print("Epoch:", epoch)
-        running_loss = 0.0
-        for xb, yb in loader:
-            optimizer.zero_grad()
-            preds = model(xb)  # (batch, n_quantiles)
-
-            loss = criterion(preds, yb)
-
-            # OPTIONAL: monotonicity penalty so q_{τ1} <= q_{τ2} <= ...
-            if lambda_monotonic > 0.0:
-                # differences between consecutive quantiles
-                diff = preds[:, :-1] - preds[:, 1:]  # (batch, n_quantiles-1)
-                # only penalize violations (where lower-q > higher-q)
-                penalty = torch.relu(diff).mean()
-                loss = loss + lambda_monotonic * penalty
-
-            loss.backward()
-            optimizer.step()
-            running_loss += loss.item() * xb.size(0)
-
-        epoch_loss = running_loss / n_samples
-        print(f"Epoch {epoch+1}/{n_epochs} - loss: {epoch_loss:.6f}")
-
-    return model
-
-
-###############
-### Example ###
-###############
 def main():
 
     #######################
@@ -369,32 +300,8 @@ def main():
     ds_z500_le_path = os.path.join(settings['paths']['data'], settings['paths']['dataset_z500'])
     z500_le = xr.open_dataset(ds_z500_le_path)
 
-    #if args.standardize_predictors:
-    #    predictors_combined_le, _, _ = ut.standardize_numpy(z500_le.pseudo_pcs.values) 
-    #else:
-    #    predictors_combined_le = z500_le.pseudo_pcs.values #xr.concat([gmt_le_expanded, z500_le.pseudo_pcs], dim="mode")
-
     predictors_combined_le = z500_le.pseudo_pcs.values
 
-    print(z500_le)
-    
-    
-    # Load ETH ensemble data
-    # Test data
-    #trefht_eth = xr.open_dataset(settings['dataset_trefht_eth_transient'])
-    #print(trefht_eth)
-    
-    #z500_eth = xr.open_dataset(settings['dataset_z500_eth_test'])
-    #print(z500_eth)
-
-    # Load GMT ETH
-    #gmt_eth_pre = xr.open_dataset(settings["gmt_eth"])
-    #gmt_eth = (gmt_eth_pre - gmt_eth_pre.mean()) / gmt_eth_pre.std()
-    
-    # concatenate data 
-    #gmt_eth_expanded = gmt_eth.TREFHT.expand_dims(mode=[-1]).T  # add 'mode' dimension with length 1
-    #predictors_combined_eth = z500_eth.pseudo_pcs #xr.concat([gmt_eth_expanded, z500_eth.pseudo_pcs], dim="mode")
-    #predictors_combined_eth
 
     ### Germany ###
     if args.domain == "GER":    
@@ -424,11 +331,7 @@ def main():
     trefht_le_ger = trefht_le.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max))
     print(trefht_le_ger)
     
-    # cut test data
-    #trefht_eth_ger = trefht_eth.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max))
-    #print(trefht_eth_ger)
-    
-    # calculate weighted means
+    # calculate weighted spatial means
     #weights
     weights_ger_pre = np.cos(np.deg2rad(trefht_le_ger["lat"]))
     weights_ger = weights_ger_pre / weights_ger_pre.sum()
@@ -437,18 +340,7 @@ def main():
     trefht_le_ger_mean = trefht_le_ger.TREFHT.weighted(weights_ger).mean(dim=("lat", "lon"))
     trefht_le_ger_mean
     
-    # test_data
-    #trefht_eth_ger_mean = trefht_eth_ger.TREFHT.weighted(weights_ger).mean(dim=("lat", "lon"))
-    #trefht_eth_ger_mean
-
-    print("Predictors train shape:", predictors_combined_le.shape)
-    print("Predictands train shape:", trefht_le_ger_mean.shape)
-    print("#######")
-    #print("Predictors train shape:", predictors_combined_eth.shape)
-    #print("Predictands test shape:", trefht_eth_ger_mean.shape)
-
-
-    # split 
+    # split data
 
     if args.standardize_predictors:
         ###
@@ -480,34 +372,9 @@ def main():
     print("X_val:", X_val_torch.shape)
     print("y_val:", y_val_torch.shape)
 
-    
-    # Example fake data ##############################################
-    #n_samples = 476900
-    #n_features = 1001
-    
-    #X_np = np.random.randn(n_samples, n_features).astype("float32")
-    # Example: y depends on first 3 features + noise
-    #y_np = (2.0 * X_np[:, 0] - 1.5 * X_np[:, 1] + 0.5 * X_np[:, 2] 
-    #        + 0.5 * np.random.randn(n_samples)).astype("float32")
-    
-    #X_torch = torch.from_numpy(X_np) #shape (sample, features)
-    #y_torch = torch.from_numpy(y_np)
-    ###################################################################
 
     # define quantiles
-    # quantiles = np.linspace(0.05, 0.95, 19)
     quantiles = np.linspace(args.q_start, args.q_end, args.q_n)
-    
-    #model = train_multi_quantile_regression(
-    #    X_torch,
-    #    y_torch,
-    #    quantiles=quantiles,
-    #    delta=1e-2,          # start a bit larger; you can lower later
-    #    batch_size=8192,     # increase if GPU memory allows
-    #    lr=1e-3,
-    #    n_epochs=10,
-    #    lambda_monotonic= 0.0 #0.1 # small penalty to encourage ordered quantiles 0.1 should suffice
-    #)
 
     model = train_multi_quantile_regression_and_save(
         X_torch, y_torch,

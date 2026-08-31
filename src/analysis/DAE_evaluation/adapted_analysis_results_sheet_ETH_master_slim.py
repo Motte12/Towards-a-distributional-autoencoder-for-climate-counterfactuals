@@ -54,24 +54,24 @@ def main():
     parser.add_argument("--no_test_members", type=int, default=3, help="Number of members in the test set.")
     parser.add_argument("--calculate_e_loss_per_ti", type=int, default=1, help="Whether to calculate energy loss per time step.")
     parser.add_argument("--StoNet_ensemble", type=int, default=0, help="Whether to evaluate StoNet ensemble.")
-    parser.add_argument("--eval_ERA5", type=int, default=0, help="Whether to evaluate ERA5.")
     parser.add_argument("--domain", type=str, default="FR", help="Domain to use for True-Pred scatterplot.")
-
 
 
     args = parser.parse_args()
     
     time_period = [str(args.period_start), str(args.period_end)]
-    ens_members=args.ens_members
     
     no_epochs = args.no_epochs
-
-    if args.eval_ERA5:
-        ensemble_path = f"{args.ensemble_path}"
-    else:
-        ensemble_path = f"{args.ensemble_path}ETH_ensemble_after_{no_epochs}_epochs"
-
     
+    ensemble_path = f"{args.ensemble_path}ETH_ensemble_after_{no_epochs}_epochs"
+
+    # save path
+    if args.save_path_le is not None:
+        print("save path LE is given")
+        save_path_le = args.save_path_le
+    else:
+        print("save path LE is not given")
+        save_path_le = f"ETH_analysis_results/final_analysis_train_LE/model_trained_for_{args.no_epochs}_epochs"
         
 
     if args.save_path_eth is not None:
@@ -84,11 +84,13 @@ def main():
         
 
     print("save path ETH analysis results:", save_path_eth)
+    print("save path LE analysis results:", save_path_le)
     print("include LE train analysis:", args.include_train_analysis)
     print("ensemble load path:", ensemble_path)
     
     
     os.makedirs(save_path_eth, exist_ok=True)
+    os.makedirs(save_path_le, exist_ok=True)
 
     
     log_file = f"{save_path_eth}/test_log_metrics_{time_period[0]}-{time_period[1]}.txt"
@@ -99,40 +101,33 @@ def main():
     log_print(log_file, f"=== Quantiles ===")
     #log_print(log_file, f"\n")
 
-
     
     # create germany and spain subdirs––±
-    #os.makedirs(f"{save_path_eth}/Germany", exist_ok=True)
-    #os.makedirs(f"{save_path_eth}/Spain", exist_ok=True)
+    os.makedirs(f"{save_path_eth}/Germany", exist_ok=True)
+    os.makedirs(f"{save_path_eth}/Spain", exist_ok=True)
     os.makedirs(f"{save_path_eth}/quantiles", exist_ok=True)
     os.makedirs(f"{save_path_eth}/data", exist_ok=True)
-    
-    
- 
-    # plotting settings
-    title_fontsize = 18
-    figsize_map = (10,8)
-    figsize_ts = (10,8)
-    figsize_hist = (8,6)
 
-    
+
+    ens_members=args.ens_members
 
     
     #################
     ### Load Data ###
     #################
+    # create figures page
+    #fig, axs = plt.subplots(2, 2, figsize=(8.27, 11.69))  # 2x2 grid of subplots
+
+    # load test data
+    #print("Loading test data ...")
     
     # Large Ensemble Data
     z500_test, z500_train, mask_x_te, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced, pi_period_mean, _, _ = de.load_test_data(args.settings_file_path)
     print(ds)
+    #print("x_te_reduced shape:", x_te_reduced.shape)
 
-    # ERA5 data
-    if args.eval_ERA5:
-        z500, mask_x_te_eth_fact, ds_test_eth_fact, ds_test_eth_cf, x_te_reduced_eth_fact, x_te_reduced_eth_cf, _, _ = de.load_era5_test_data(args.settings_file_path)
-        
     # ETH Ensemble Test data
-    else:
-        z500, mask_x_te_eth_fact, ds_test_eth_fact, ds_test_eth_cf, x_te_reduced_eth_fact, x_te_reduced_eth_cf, _, _ = de.load_eth_test_data(args.settings_file_path)
+    z500, mask_x_te_eth_fact, ds_test_eth_fact, ds_test_eth_cf, x_te_reduced_eth_fact, x_te_reduced_eth_cf, _, _ = de.load_eth_test_data(args.settings_file_path)
     # z500                  -> test predictors
     # mask_x_te_eth_fact    -> land mask
     # ds_test_eth_fact      -> factual test temperatures (xarray dataset) lat: 32, lon: 32, time: 14307
@@ -171,6 +166,9 @@ def main():
     print("Start index 1500:", start_idx_1500)
     print("End index 1500:", end_idx_1500)
 
+    #print(ds_test_eth_fact.TREFHT.isel(time=slice(0, 4769)).time[start_idx])
+    #print(ds_test_eth_fact.TREFHT.isel(time=slice(0, 4769)).time[end_idx])
+
     
     #################
     ### Test Data ###
@@ -184,8 +182,7 @@ def main():
     print("eth_fact_1300_test_reduced shape:", eth_fact_1300_test_reduced.shape)
     mask_x_te = mask_x_te_eth_fact
 
-    # Counterfactual
-    # Factual Test/True temperatures
+    # Counterfactual Test/True temperatures
     eth_cf_1300_test_reduced = x_te_reduced_eth_cf[:slice_end_index,:][start_idx:end_idx,:] # HERE
     eth_cf_1400_test_reduced = x_te_reduced_eth_cf[slice_end_index:2*slice_end_index,:][start_idx:end_idx,:]
     eth_cf_1500_test_reduced = x_te_reduced_eth_cf[-slice_end_index:14307,:][start_idx:end_idx,:]
@@ -195,7 +192,9 @@ def main():
     ### Load DAE Ensemble ###
     #########################
     
-    # including nan's    
+    # including nan's
+    #dpa_ensemble = xr.open_zarr(f"{save_path_ensemble_single}/dpa_ens_100_dataset_restored.zarr", consolidated=True)
+    
     # RAW ensemble without NaNs
     # shape: ensemble_member: 100time: 64000lat_x_lon: 648
     print("Loading DPA ensemble ...")
@@ -248,11 +247,10 @@ def main():
         dpa_1400_cf_restored = dpa_ensemble_restored_cf.TREFHT.isel(time=slice(slice_end_index,2*slice_end_index)).sel(time=slice(time_period[0], time_period[1]))
         dpa_1500_cf_restored = dpa_ensemble_restored_cf.TREFHT.isel(time=slice(-slice_end_index,14307)).sel(time=slice(time_period[0], time_period[1]))
     
-    
 
-    #####################
-    ### Scatter data ####
-    #####################
+    ##############
+    ### Tests ####
+    ##############
     print("#################")
     print("### Test data ###")
     print("#################")
@@ -362,8 +360,8 @@ def main():
             return da.median(dim=dim, skipna=True)
         
         # --- Factual ---
+        true_fact = ds_test_eth_fact["TREFHT"]                      # dims: (lat, lon, time)
         dae_fact_median = ensemble_median_nan_safe(dpa_ensemble_fact_restored["TREFHT"])  # dims: (lat, lon, time)
-        true_fact = ds_test_eth_fact["TREFHT"].transpose("time", "lat", "lon").assign_coords(time=dae_fact_median.time)                      # dims: (lat, lon, time)
         print("dae_fact_median.shape:", dae_fact_median.shape)
         
         # --- Counterfactual ---
@@ -394,9 +392,6 @@ def main():
             return r2
         
         # --- Compute per-gridcell R^2 (using factual data) ---
-        print("true_fact:", true_fact)
-        print("dae_fact_median:", dae_fact_median)
-        #sys.exit()
         r2_map = r2_per_gridcell(true_fact, dae_fact_median)  # dims: (lat, lon)
         print("r2_map shape:", r2_map.shape)
         
@@ -516,34 +511,36 @@ def main():
         #plt.savefig("true_vs_predicted_scatter_percentile_gridcells_factcf.pdf")
         plt.show()
 
+
+    
     #############
     #############
     #############
     
     # mean of restored factual DPA ensemble
-    #dpa_ens_mean_restored = dpa_ensemble_fact_restored.TREFHT.mean(dim="ensemble_member")
-    dpa_ens_mean_fact_1300_restored = dpa_1300_fact_restored.mean(dim="ensemble_member")
+    #dpa_ens_mean_restored = dpa_ensemble_fact_restored.TREFHT.median(dim="ensemble_member")
+    dpa_ens_mean_fact_1300_restored = dpa_1300_fact_restored.median(dim="ensemble_member")
     if args.no_test_members > 1:
-        dpa_ens_mean_fact_1400_restored = dpa_1400_fact_restored.mean(dim="ensemble_member")
-        dpa_ens_mean_fact_1500_restored = dpa_1500_fact_restored.mean(dim="ensemble_member")
+        dpa_ens_mean_fact_1400_restored = dpa_1400_fact_restored.median(dim="ensemble_member")
+        dpa_ens_mean_fact_1500_restored = dpa_1500_fact_restored.median(dim="ensemble_member")
 
     # mean of restored counterfactual DPA ensemble
-    dpa_ens_mean_cf_1300_restored = dpa_1300_cf_restored.mean(dim="ensemble_member")
+    dpa_ens_mean_cf_1300_restored = dpa_1300_cf_restored.median(dim="ensemble_member")
     if args.no_test_members > 1:
-        dpa_ens_mean_cf_1400_restored = dpa_1400_cf_restored.mean(dim="ensemble_member")
-        dpa_ens_mean_cf_1500_restored = dpa_1500_cf_restored.mean(dim="ensemble_member")
+        dpa_ens_mean_cf_1400_restored = dpa_1400_cf_restored.median(dim="ensemble_member")
+        dpa_ens_mean_cf_1500_restored = dpa_1500_cf_restored.median(dim="ensemble_member")
 
     # mean of raw factual ensemble
-    dpa_ens_mean_fact_1300_raw = dpa_1300_fact_raw.mean(dim="ensemble_member")
+    dpa_ens_mean_fact_1300_raw = dpa_1300_fact_raw.median(dim="ensemble_member")
     if args.no_test_members > 1:
-        dpa_ens_mean_fact_1400_raw = dpa_1400_fact_raw.mean(dim="ensemble_member")
-        dpa_ens_mean_fact_1500_raw = dpa_1500_fact_raw.mean(dim="ensemble_member")
+        dpa_ens_mean_fact_1400_raw = dpa_1400_fact_raw.median(dim="ensemble_member")
+        dpa_ens_mean_fact_1500_raw = dpa_1500_fact_raw.median(dim="ensemble_member")
 
     # mean of raw counterfactual ensemble
-    dpa_ens_mean_cf_1300_raw = dpa_1300_cf_raw.mean(dim="ensemble_member")
+    dpa_ens_mean_cf_1300_raw = dpa_1300_cf_raw.median(dim="ensemble_member")
     if args.no_test_members > 1:
-        dpa_ens_mean_cf_1400_raw = dpa_1400_cf_raw.mean(dim="ensemble_member")
-        dpa_ens_mean_cf_1500_raw = dpa_1500_cf_raw.mean(dim="ensemble_member")
+        dpa_ens_mean_cf_1400_raw = dpa_1400_cf_raw.median(dim="ensemble_member")
+        dpa_ens_mean_cf_1500_raw = dpa_1500_cf_raw.median(dim="ensemble_member")
 
     
     dpa_ens_mean_fact_1300_raw_pt = torch.from_numpy(dpa_ens_mean_fact_1300_raw.values) #dpa_ens_mean_pt
@@ -676,22 +673,16 @@ def main():
     ###########
 
     mae_1300_fact = evaluation.mae_cols(eth_fact_1300_test_reduced, dpa_ens_mean_fact_1300_raw_pt, dim=0)
-    if args.no_test_members > 1:
-        mae_1400_fact = evaluation.mae_cols(eth_fact_1400_test_reduced, dpa_ens_mean_fact_1400_raw_pt, dim=0)
-        mae_1500_fact = evaluation.mae_cols(eth_fact_1500_test_reduced, dpa_ens_mean_fact_1500_raw_pt, dim=0)
+    mae_1400_fact = evaluation.mae_cols(eth_fact_1400_test_reduced, dpa_ens_mean_fact_1400_raw_pt, dim=0)
+    mae_1500_fact = evaluation.mae_cols(eth_fact_1500_test_reduced, dpa_ens_mean_fact_1500_raw_pt, dim=0)
 
     mae_1300_cf = evaluation.mae_cols(eth_cf_1300_test_reduced, dpa_ens_mean_cf_1300_raw_pt, dim=0)
-    if args.no_test_members > 1:
-        mae_1400_cf = evaluation.mae_cols(eth_cf_1400_test_reduced, dpa_ens_mean_cf_1400_raw_pt, dim=0)
-        mae_1500_cf = evaluation.mae_cols(eth_cf_1500_test_reduced, dpa_ens_mean_cf_1500_raw_pt, dim=0)
+    mae_1400_cf = evaluation.mae_cols(eth_cf_1400_test_reduced, dpa_ens_mean_cf_1400_raw_pt, dim=0)
+    mae_1500_cf = evaluation.mae_cols(eth_cf_1500_test_reduced, dpa_ens_mean_cf_1500_raw_pt, dim=0)
 
     # concatenate
-    if args.no_test_members > 1:
-        all_mae_fact = torch.cat((mae_1300_fact, mae_1400_fact, mae_1500_fact), dim=0)
-        all_mae_cf = torch.cat((mae_1300_cf, mae_1400_cf, mae_1500_cf), dim=0)
-    else:
-        all_mae_fact = mae_1300_fact.clone()
-        all_mae_cf = mae_1300_cf.clone()
+    all_mae_fact = torch.cat((mae_1300_fact, mae_1400_fact, mae_1500_fact), dim=0)
+    all_mae_cf = torch.cat((mae_1300_cf, mae_1400_cf, mae_1500_cf), dim=0)
 
     # save MAE arrays for later evaluation
     # f"{save_path_eth}/data/
@@ -731,8 +722,14 @@ def main():
     # save and show
     fig.savefig(f"{save_path_eth}/MAE_spatial.pdf")
     plt.show()
-    
 
+    
+    ###############################
+    ### True/Pred scatter plots ###
+    ###############################
+
+    # true data
+    
     
     
 

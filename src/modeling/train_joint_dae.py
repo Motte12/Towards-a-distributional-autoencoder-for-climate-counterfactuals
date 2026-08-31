@@ -327,24 +327,29 @@ def main():
             x = train_batch[0].to(device)
             y = train_batch[1].to(device)
             
+            # encoding
             e = model_enc(y)
+
+            # reconstructions (=decodings)
             rec1 = model_dec(e) 
             rec2 = model_dec(e)
-            
+
+            # latent predictions
             z1 = model_pred(x)
-            gen1 = model_dec(z1)
             z2 = model_pred(x)
+            
+            # decodings of latent predictions
+            gen1 = model_dec(z1)
             gen2 = model_dec(z2)
     
-            # FL
             # for plotting
             #z3 = model_pred(x)
             #gen3 = model_dec(z3)
-            
+
+            # energy loss of reconstructions
             loss_rec, s1_rec, s2_rec = energy_loss_two_sample(y, rec1, rec2, verbose=True, beta=beta)
             loss = loss_rec
             
-            #if include_KL:
             # energy loss of predicted z
             loss_pred_z, s1_pred_z, s2_pred_z = energy_loss_two_sample(e, z1, z2, verbose=True, beta=beta) #loss im latent space
             loss_pre = loss_rec + args.lam * loss_pred_z
@@ -357,13 +362,15 @@ def main():
                     loss = loss_pre + penalty_e #+ penalty_gen
 
                 else:
-                    loss = loss_pre #+ penalty_gen
+                    loss = loss_pre
                 
             else:
                 loss = loss_pre
-            
+
+            # energy loss of decoded latent predictions 
             loss_pred, s1_pred, s2_pred = energy_loss_two_sample(y, gen1, gen2, verbose=True, beta=beta)
-            
+
+            # add losses
             loss = loss + args.alpha * loss_pred
                 
             loss.backward()

@@ -371,7 +371,7 @@ def main():
     print("predictors combined shape:", predictors_combined_le.shape)
 
     ### STANDARDIZE DATA ###
-    if args.data_version == "v1" or args.data_version == "v4" or args.standardize_predictors:
+    if args.standardize_predictors:
         print("Data standardized here")
         ## train
         train_predictors, train_mean, train_std = ut.standardize_numpy(predictors_combined_le[:90*4769, :])
@@ -414,7 +414,7 @@ def main():
     # set counterfactual fGMT when evaluating counterfactuals
     if args.eval_counterfactuals:
         pi_period_mean = predictors_combined_le_pre.isel(time=slice(0,4769)).sel(time=slice("1850","1900")).isel(mode=1000).mean().values
-        cf_fgmt = (pi_period_mean - train_mean[0,-1]) / train_std[0,-1]
+        cf_fgmt = (pi_period_mean - train_mean[0,-1]) / train_std[0,-1] # standardize pi_period_mean
 
         # assign value to test set
         X_test_torch[:,-1] = torch.tensor(cf_fgmt)

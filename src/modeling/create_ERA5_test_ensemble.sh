@@ -58,7 +58,7 @@ settings_file=$(jq -r '.settings_file' "$cfg")
 # "ERA5_inherent"
 # "ERA5_train_stats"
 # "ERA5_train_stats_detrended"
-# "ERA5_inherent_detrended"
+# "ERA5_inherent_detrended" --> the one used in the paper, ERA5 Z500 detrended and standardized using its own mean, std
 
 python create_test_ensemble.py \
     --ens_members $ENS_MEMBERS \

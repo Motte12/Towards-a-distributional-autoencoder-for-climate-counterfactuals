@@ -50,7 +50,7 @@ Towards-a-distributional-autoencoder-for-climate-counterfactuals/
 (trainig from scratch)
 
 4. Train the DAE model from scratch
-   - start model training by running start_joint_training.sh
+   - start model training by running start_joint_training.sh (this trains the model specified in settings.json)
    - (optional: set your own model and training parameters, then also adjust `["current_model"]` and `["epochs"]` in `settings.json`) 
 5. Generate factual and counterfactual ensembles
    - in `src/modeling/create_ensemble.sh`, adjust

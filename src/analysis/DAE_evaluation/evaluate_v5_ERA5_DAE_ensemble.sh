@@ -12,7 +12,6 @@ NO_EPOCHS=$(jq -r '.epochs' "$global_settings") # specify the model you want to 
 ENS_MEMBERS=$(jq -r '.no_ens_members' "$global_settings") # number of ensemble members to generate, code is not robust to any changes of this number
 
 
-
 MODEL=$(jq -r '.current_model' "$global_settings")
 echo "using model: $MODEL $NO_EPOCHS $ENS_MEMBERS"
 
@@ -53,12 +52,6 @@ num_layer_lm=$(jq -r '.num_layer_lm' "$cfg")
 out_activation=$(jq -r '.out_activation // empty' "$cfg")
 resblock=$(jq -r '.resblock' "$cfg")
 settings_file=$(jq -r '.settings_file' "$cfg")
-
-##########################
-# could insert creation of ensembles here
-
-
-
 
 
 # run the analysis

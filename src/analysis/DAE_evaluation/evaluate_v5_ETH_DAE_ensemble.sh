@@ -54,12 +54,6 @@ out_activation=$(jq -r '.out_activation // empty' "$cfg")
 resblock=$(jq -r '.resblock' "$cfg")
 settings_file=$(jq -r '.settings_file' "$cfg")
 
-##########################
-# could insert creation of ensembles here
-
-
-
-
 
 # run the analysis
 period_start_years=(1850)

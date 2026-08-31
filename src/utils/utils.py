@@ -60,6 +60,9 @@ def data_to_torch(ds, variable):
     return data_tensor
 
 def standardize_numpy(X, mean=None, std=None):
+    """
+    Standardize numpy arrays (sample, feature) i.e. (timestep, grid-cell).
+    """
     if (mean is None) != (std is None):
         raise ValueError("mean and std must be both provided or both None")
 
@@ -79,6 +82,10 @@ def plot_all_losses(
     loss_s1_lin_lat_pred_tr, loss_s2_lin_lat_pred_tr,
     loss_s1_lin_lat_pred_te, loss_s2_lin_lat_pred_te,
     training_epochs):
+
+    """
+    Plot train and validation losses during training.
+    """
     
     fig, axs = plt.subplots(1, 3, figsize=(21, 5))
 
@@ -281,6 +288,9 @@ def get_ger_1d_data(trefht_pre,
                     lon_min = 6,
                     lon_max = 15
                     ):
+    """
+    Compute spatial mean.
+    """
     
     # cut data
     trefht_le = trefht_pre.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))

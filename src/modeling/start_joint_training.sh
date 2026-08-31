@@ -3,7 +3,7 @@
 # configuration
 global_settings="../../settings.json"
 MODEL_PATH=$(jq -r '.paths.output_dir' "$global_settings") # path of the trained model
-NO_EPOCHS=$(jq -r '.epochs' "$global_settings") # specify the model you want to use in terms of its training epochs
+NO_EPOCHS=$(jq -r '.epochs' "$global_settings") # specify the model you want to use in terms of its training epochs (in settings.json)
 ENS_MEMBERS=$(jq -r '.no_ens_members' "$global_settings") # number of ensemble members to generate, code is not robust to any changes of this number
 
 
