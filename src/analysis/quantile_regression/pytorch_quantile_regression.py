@@ -60,8 +60,6 @@ class LinearMultiQuantileRegressor(nn.Module):
         return self.linear(x)
 
 
-
-
 def train_multi_quantile_regression_and_save(
     X: torch.Tensor,
     y: torch.Tensor,
@@ -268,13 +266,10 @@ def main():
     parser.add_argument("--batch_size", type=int, default=8192)
     parser.add_argument("--learning_rate", type=float, default=1e-3)
     parser.add_argument("--n_epochs", type=int)
-    parser.add_argument("--lambda_monotonic", type=float, default=0.0)
+    parser.add_argument("--lambda_monotonic", type=float, default=0.1)
     parser.add_argument("--standardize_predictors", type=int, default=0, help="Whether to still standardize predictors or not.")
     parser.add_argument("--save_path", type=str)
     parser.add_argument("--domain", type=str, help="Domain to train model in (GER, FR, SP).")
-    #parser.add_argument("--", type=, default = )
-    #parser.add_argument("--", type=, default = )
-    #parser.add_argument("--", type=, default = )
     
     args = parser.parse_args()
 
@@ -283,7 +278,7 @@ def main():
     ### Load my data ###
     ####################
     # load my data
-    settings_file_path = args.settings_file_path #"../joint_training/v2_dpa_train_settings.json"
+    settings_file_path = args.settings_file_path
     
     with open(settings_file_path, 'r') as file:
             settings = json.load(file)
@@ -363,7 +358,6 @@ def main():
         ## validation
         X_val_torch = torch.from_numpy(predictors_combined_le)[90*4769:, :]
         y_val_torch = torch.from_numpy(trefht_le_ger_mean.values)[90*4769:]
-
     
     
     print("X:", X_torch.shape)

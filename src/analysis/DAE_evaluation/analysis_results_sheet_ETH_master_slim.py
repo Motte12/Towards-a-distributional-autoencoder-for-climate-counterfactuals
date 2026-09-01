@@ -1,11 +1,4 @@
 import torch
-from torchvision.utils import make_grid
-from torch.utils.data import TensorDataset, DataLoader
-import torch.nn as nn
-
-from engression.models import StoNet, StoLayer
-from engression.loss_func import energy_loss, energy_loss_two_sample
-
 import xarray as xr
 import pandas as pd
 import os
@@ -13,16 +6,9 @@ import random
 import matplotlib.pyplot as plt
 import argparse
 import json
-from sklearn.manifold import TSNE
 import numpy as np
-import scipy.stats as stats
-import cartopy.crs as ccrs
-import cartopy.feature as cfeature
-import matplotlib.patches as mpatches
-import shutil
 from datetime import datetime
 import argparse
-from matplotlib.patches import Patch
 
 import sys
 import os
@@ -56,24 +42,21 @@ def main():
     parser.add_argument("--StoNet_ensemble", type=int, default=0, help="Whether to evaluate StoNet ensemble.")
     parser.add_argument("--eval_ERA5", type=int, default=0, help="Whether to evaluate ERA5.")
     parser.add_argument("--domain", type=str, default="FR", help="Domain to use for True-Pred scatterplot.")
-
-
-
     args = parser.parse_args()
     
     time_period = [str(args.period_start), str(args.period_end)]
-    ens_members=args.ens_members
     
+    ens_members=args.ens_members
     no_epochs = args.no_epochs
 
+    # Paths
+    # ensemble path
     if args.eval_ERA5:
         ensemble_path = f"{args.ensemble_path}"
     else:
         ensemble_path = f"{args.ensemble_path}ETH_ensemble_after_{no_epochs}_epochs"
 
-    
-        
-
+    # set save path
     if args.save_path_eth is not None:
         print("save path eth is given")
         save_path_eth = f"{args.save_path_eth}/period_{time_period[0]}_{time_period[1]}"
@@ -81,43 +64,31 @@ def main():
         print("save path eth is not given")
         save_path_eth = f"ETH_analysis_results/final_analysis_test_ETH/model_trained_for_{args.no_epochs}_epochs/period_{time_period[0]}_{time_period[1]}"
 
-        
-
+    # create save paths
+    os.makedirs(save_path_eth, exist_ok=True)
+    os.makedirs(f"{save_path_eth}/quantiles", exist_ok=True)
+    os.makedirs(f"{save_path_eth}/data", exist_ok=True)
+    
     print("save path ETH analysis results:", save_path_eth)
     print("include LE train analysis:", args.include_train_analysis)
     print("ensemble load path:", ensemble_path)
     
-    
-    os.makedirs(save_path_eth, exist_ok=True)
-
-    
-    log_file = f"{save_path_eth}/test_log_metrics_{time_period[0]}-{time_period[1]}.txt"
+    # Log file
+    #log_file = f"{save_path_eth}/test_log_metrics_{time_period[0]}-{time_period[1]}.txt"
     
     # Get current time and print it
-    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    log_print(log_file, f"=== Current Time: {current_time} ===")
-    log_print(log_file, f"=== Quantiles ===")
-    #log_print(log_file, f"\n")
+    #current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    #log_print(log_file, f"=== Current Time: {current_time} ===")
+    #log_print(log_file, f"=== Quantiles ===")
 
-
-    
-    # create germany and spain subdirs––±
-    #os.makedirs(f"{save_path_eth}/Germany", exist_ok=True)
-    #os.makedirs(f"{save_path_eth}/Spain", exist_ok=True)
-    os.makedirs(f"{save_path_eth}/quantiles", exist_ok=True)
-    os.makedirs(f"{save_path_eth}/data", exist_ok=True)
-    
-    
  
-    # plotting settings
+    # Plotting settings
     title_fontsize = 18
     figsize_map = (10,8)
     figsize_ts = (10,8)
     figsize_hist = (8,6)
 
-    
 
-    
     #################
     ### Load Data ###
     #################
@@ -143,12 +114,12 @@ def main():
     
     slice_end_index = int(x_te_reduced_eth_fact.shape[0]/args.no_test_members)
     print("Slice end index:", slice_end_index)
+    
     # datasets
-    ds_test_1300_eth_fact = ds_test_eth_fact.TREFHT.isel(time=slice(0, slice_end_index)).sel(time=slice(time_period[0], time_period[1])) # HERE TP
-    #print("ds_test_1300_eth_fact:", ds_test_1300_eth_fact)
-    ds_test_1300_eth_cf = ds_test_eth_cf.TREFHT.isel(time=slice(0, slice_end_index)).sel(time=slice(time_period[0], time_period[1])) # HERE TP
+    ds_test_1300_eth_fact = ds_test_eth_fact.TREFHT.isel(time=slice(0, slice_end_index)).sel(time=slice(time_period[0], time_period[1]))
+    ds_test_1300_eth_cf = ds_test_eth_cf.TREFHT.isel(time=slice(0, slice_end_index)).sel(time=slice(time_period[0], time_period[1]))
 
-    # get indices of time slices
+    # get indices of individual test time slices
     time_index = ds_test_eth_fact.TREFHT.isel(time=slice(0, slice_end_index)).get_index("time")
     #print("Time index:", time_index)
     indices = time_index.get_indexer(ds_test_1300_eth_fact.time.values)
@@ -156,18 +127,10 @@ def main():
     start_idx_1400, end_idx_1400 = end_idx, 2*end_idx
     start_idx_1500, end_idx_1500 = 2*end_idx, 3*end_idx
     
-    
-    #if time_period[-1] == "2100":
-    #    end_idx = indices[-1]
-    
-    #############################
-
     print("Start index:", start_idx)
     print("End index:", end_idx)
-
     print("Start index 1400:", start_idx_1400)
     print("End index 1400:", end_idx_1400)
-
     print("Start index 1500:", start_idx_1500)
     print("End index 1500:", end_idx_1500)
 
@@ -195,24 +158,15 @@ def main():
     ### Load DAE Ensemble ###
     #########################
     
-    # including nan's    
-    # RAW ensemble without NaNs
-    # shape: ensemble_member: 100time: 64000lat_x_lon: 648
-    print("Loading DPA ensemble ...")
+    
     print("DPA ensemble load paths:")
-
-    # FACTUAL 
     # shape: ensemble_member: 100, time: 14307, lat_x_lon: 648
     print(f"{ensemble_path}/raw_ETH_gen_dpa_ens_{no_epochs}_dataset.nc")
     print(f"{ensemble_path}/ETH_gen_dpa_ens_{no_epochs}_dataset_restored.nc")
     print(f"{ensemble_path}/raw_ETH_cf_gen_dpa_ens_{no_epochs}_dataset.nc")
     print(f"{ensemble_path}/ETH_cf_gen_dpa_ens_{no_epochs}_dataset_restored.nc")
-    
-    
-        
         
     # load DAE ensembles
-    
     # factual
     dpa_ensemble_fact_raw = xr.open_dataset(f"{ensemble_path}/raw_ETH_gen_dpa_ens_{no_epochs}_dataset.nc")
     dpa_ensemble_fact_restored = xr.open_dataset(f"{ensemble_path}/ETH_gen_dpa_ens_{no_epochs}_dataset_restored.nc")
@@ -221,13 +175,12 @@ def main():
     dpa_ensemble_raw_cf = xr.open_dataset(f"{ensemble_path}/raw_ETH_cf_gen_dpa_ens_{no_epochs}_dataset.nc")
     dpa_ensemble_restored_cf = xr.open_dataset(f"{ensemble_path}/ETH_cf_gen_dpa_ens_{no_epochs}_dataset_restored.nc")
 
-    # subset to individual test members
+    # subset to individual test members (1300, 1400, 1500)
     # FACTUAL
     dpa_1300_fact_raw = dpa_ensemble_fact_raw.TREFHT.isel(time=slice(0, slice_end_index)).sel(time=slice(time_period[0], time_period[1]))
     if args.no_test_members > 1:
         dpa_1400_fact_raw = dpa_ensemble_fact_raw.TREFHT.isel(time=slice(slice_end_index,2*slice_end_index)).sel(time=slice(time_period[0], time_period[1]))
         dpa_1500_fact_raw = dpa_ensemble_fact_raw.TREFHT.isel(time=slice(-slice_end_index,14307)).sel(time=slice(time_period[0], time_period[1]))
-    #print("dpa_1300_fact_raw:", dpa_1300_fact_raw)
     
 
     # shape: ensemble_member: 100, time: 14307, lat: 32, lon: 32
@@ -265,11 +218,11 @@ def main():
     print("dpa_ensemble_fact_restored:", dpa_ensemble_fact_restored)
     print("dpa_ensemble_restored_cf:", dpa_ensemble_restored_cf)
 
+    ###########################
+    ### Domain spatial mean ###
+    ###########################
     if True:
-        ###################
-        ### Domain avg. ###
-        ###################
-    
+        
         # Domain 
         if args.domain == "GER":
             # GER
@@ -324,7 +277,7 @@ def main():
             },
         )
         
-        ds_domain.to_netcdf(f"{save_path_eth}/data/domain_mean_{args.domain}.nc")
+        #ds_domain.to_netcdf(f"{save_path_eth}/data/domain_mean_{args.domain}.nc")
         
         # --- Scatter plot: true vs predicted ---
         fig, ax = plt.subplots(figsize=(7, 7))
@@ -396,7 +349,6 @@ def main():
         # --- Compute per-gridcell R^2 (using factual data) ---
         print("true_fact:", true_fact)
         print("dae_fact_median:", dae_fact_median)
-        #sys.exit()
         r2_map = r2_per_gridcell(true_fact, dae_fact_median)  # dims: (lat, lon)
         print("r2_map shape:", r2_map.shape)
         
@@ -482,52 +434,18 @@ def main():
         ds_out.to_netcdf(f"{save_path_eth}/data/percentile_selected_gridcells_fact_cf.nc")
 
 
-        # --- Plot: 3 panels side by side, fact (orange) + cf (blue) ---
-        fig, axes = plt.subplots(1, 3, figsize=(18, 6))
-        
-        panels = [
-            (axes[0], t_p20, p_p20, t_p20_cf, p_p20_cf,
-             f"20th percentile cell\n(lat={lat_p20:.1f}, lon={lon_p20:.1f}, R²={r2_map.values[idx_p20]:.3f})"),
-            (axes[1], t_p50, p_p50, t_p50_cf, p_p50_cf,
-             f"Median (50th pct) cell\n(lat={lat_p50:.1f}, lon={lon_p50:.1f}, R²={r2_map.values[idx_p50]:.3f})"),
-            (axes[2], t_best, p_best, t_best_cf, p_best_cf,
-             f"Best cell\n(lat={lat_best:.1f}, lon={lon_best:.1f}, R²={r2_map.values[idx_best]:.3f})"),
-        ]
-        
-        for ax, t, p, t_cf, p_cf, title in panels:
-            ax.scatter(t, p, alpha=0.3, s=8, color="tab:orange", label="Factual")
-            ax.scatter(t_cf, p_cf, alpha=0.3, s=8, color="tab:blue", label="Counterfactual")
-        
-            lims = [
-                min(t.min(), p.min(), t_cf.min(), p_cf.min()),
-                max(t.max(), p.max(), t_cf.max(), p_cf.max()),
-            ]
-            ax.plot(lims, lims, "k--", linewidth=1, label="1:1 line")
-            ax.set_xlim(lims)
-            ax.set_ylim(lims)
-            ax.set_xlabel("True (CESM2)")
-            ax.set_ylabel("Predicted (DAE ensemble median)")
-            ax.set_title(title)
-            ax.legend(fontsize=8)
-            ax.grid(alpha=0.3)
-            ax.set_aspect("equal")
-        
-        #plt.tight_layout()
-        #plt.savefig("true_vs_predicted_scatter_percentile_gridcells_factcf.pdf")
-        plt.show()
-
-    #############
-    #############
-    #############
+    ########################
+    ### End scatter data ###
+    ########################
     
-    # mean of restored factual DPA ensemble
+    # ensemble mean of restored factual DPA ensemble
     #dpa_ens_mean_restored = dpa_ensemble_fact_restored.TREFHT.mean(dim="ensemble_member")
     dpa_ens_mean_fact_1300_restored = dpa_1300_fact_restored.mean(dim="ensemble_member")
     if args.no_test_members > 1:
         dpa_ens_mean_fact_1400_restored = dpa_1400_fact_restored.mean(dim="ensemble_member")
         dpa_ens_mean_fact_1500_restored = dpa_1500_fact_restored.mean(dim="ensemble_member")
 
-    # mean of restored counterfactual DPA ensemble
+    # ensemble mean of restored counterfactual DPA ensemble
     dpa_ens_mean_cf_1300_restored = dpa_1300_cf_restored.mean(dim="ensemble_member")
     if args.no_test_members > 1:
         dpa_ens_mean_cf_1400_restored = dpa_1400_cf_restored.mean(dim="ensemble_member")
@@ -561,114 +479,62 @@ def main():
     ###################
     ### Calibration ###
     ###################
+    # quantiles to evaluate
     quantiles_cq = torch.linspace(0.01, 0.99, 99)
-    quantiles_cq_np = np.linspace(0.01, 0.99, 99)
-
 
     ### Factual ###
     if True:
-        mae_means = []
-        mae099_means = []
-        coverages_all_membs = np.zeros((args.no_test_members,99))
-    
         through = zip([eth_fact_1300_test_reduced], [dpa_1300_fact_raw])
         if args.no_test_members > 1:
             through = zip([eth_fact_1300_test_reduced, eth_fact_1400_test_reduced, eth_fact_1500_test_reduced], [dpa_1300_fact_raw.values, dpa_1400_fact_raw.values, dpa_1500_fact_raw.values])
+        
         memb = 0
-        all_gc_coverages_fact = {}
         for y_test_np, dpa_xxxx_fact_raw in through:
-            mae_list = []
-            mae099_list = []
+            #mae_list = []
+            #mae099_list = []
             member_gc_coverages = np.zeros((648,99))
+            # iterate through grid-cells
             for i in range(648):
                 print(i)
-                print("Shapes truth, ensemble:", y_test_np[:,i].shape,dpa_xxxx_fact_raw[:,:,i].shape)
+                
+                # compute DAE quantiles
                 quantile_predictions_dpa = np.quantile(dpa_xxxx_fact_raw[:,:,i].T, np.linspace(0.01, 0.99, 99), axis=1).T
-
+                
+                # compute coverage per quantile
                 cover_dpa = evaluation.compute_coverage_per_quantile(y_test_np[:,i], quantile_predictions_dpa, quantiles_cq)
+                
                 # save cq per grid-cell
                 member_gc_coverages[i,:] = cover_dpa
 
-            ##############################
+            # save results per member
             np.save(f"{save_path_eth}/data/cq_spatial_test_member{memb}_factual_01-99.npy", member_gc_coverages)
-            all_gc_coverages_fact[str(memb)] = member_gc_coverages
-            spat_mean_coverage = np.mean(member_gc_coverages, axis=0) # compute mean coverage over all grid-cells
-            coverages_all_membs[memb, :] = spat_mean_coverage
             memb += 1
-            spat_mean_mae = np.mean(mae_list) 
-            spat_mean_099 = np.mean(mae099_list)
-            mae_means.append(spat_mean_mae)
-            mae099_means.append(spat_mean_099)
-
-        # compute mean coverage across members from: coverages_all_membs
-        # mean of: mean of spatial covergae per grid-cell, per member
-        mean_coverage_membs_gcs = np.mean(coverages_all_membs, axis = 0)
-        print("mean_coverage_membs_gcs shape:", mean_coverage_membs_gcs.shape)
-        mae_membs_gcs = np.mean(np.abs(quantiles_cq_np - mean_coverage_membs_gcs))
-    
-        log_print(log_file, f"factual mean calibration CQ MAE: {mae_membs_gcs}")
-        log_print(log_file, f"coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): {np.mean(mae_means)}")
-        log_print(log_file, f"095 coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): {np.mean(mae099_means)}")
-    
-        
-
-    
-
+            
     
     ### Counterfactual ###
-    mae_means_cf = []
-    mae099_means_cf = []
-    coverages_all_membs_cf = np.zeros((args.no_test_members,99))
-    
+    print("Evaluating counterfactual calibration ...")
     through_cf = zip([eth_cf_1300_test_reduced], [dpa_1300_cf_raw])
     if args.no_test_members > 1:
         through_cf = zip([eth_cf_1300_test_reduced, eth_cf_1400_test_reduced, eth_cf_1500_test_reduced], [dpa_1300_cf_raw.values, dpa_1400_cf_raw.values, dpa_1500_cf_raw.values])
     memb = 0
-    all_gc_coverages_cf = {}
+
     for y_test_np, dpa_xxxx_cf_raw in through_cf:
-        mae_list = []
-        mae099_list = []
         member_gc_coverages_cf = np.zeros((648,99))
         for i in range(648):
             print(i)
+
+            # compute DAE quantiles
             quantile_predictions_dpa = np.quantile(dpa_xxxx_cf_raw[:,:,i].T, np.linspace(0.01, 0.99, 99), axis=1).T
+
+            # compute coverage per quantile
             cover_dpa = evaluation.compute_coverage_per_quantile(y_test_np[:,i], quantile_predictions_dpa, quantiles_cq)
 
             # save cq per grid-cell
             member_gc_coverages_cf[i,:] = cover_dpa
-    
-            mae = np.mean(np.abs(quantiles_cq_np - cover_dpa))
-            mae_list.append(mae)
-            mae099 = np.abs(quantiles_cq_np[-1] - cover_dpa[-1])
-            mae099_list.append(mae099)
-        np.save(f"{save_path_eth}/data/cq_spatial_test_member{memb}_counterfactual_01-99.npy", member_gc_coverages_cf)
-        all_gc_coverages_cf[str(memb)] = member_gc_coverages_cf
-        spat_mean_coverage_cf = np.mean(member_gc_coverages_cf, axis=0) # compute mean coverage over all grid-cells
-        coverages_all_membs_cf[memb, :] = spat_mean_coverage_cf
-        memb += 1
-        spat_mean_mae = np.mean(mae_list) 
-        spat_mean_099 = np.mean(mae099_list)
-        mae_means_cf.append(spat_mean_mae)
-        mae099_means_cf.append(spat_mean_099)
-
-    # compute mean coverage across members from: coverages_all_membs
-    # mean of: mean of spatial covergae per grid-cell, per member
-    mean_coverage_membs_gcs_cf = np.mean(coverages_all_membs_cf, axis = 0)
-    print("mean_coverage_membs_gcs shape:", mean_coverage_membs_gcs_cf.shape)
-    mae_membs_gcs_cf = np.mean(np.abs(quantiles_cq_np - mean_coverage_membs_gcs_cf))
         
-    log_print(log_file, f"counterfactual mean calibration CQ MAE: {mae_membs_gcs_cf}")
-    log_print(log_file, f"counterfactual coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): {np.mean(mae_means_cf)}")
-    log_print(log_file, f"counterfactual 095 coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): {np.mean(mae099_means_cf)}")
-
-
-    ###################
-    ###################
-    ###################
-
-
-
-
+        # save results per member
+        np.save(f"{save_path_eth}/data/cq_spatial_test_member{memb}_counterfactual_01-99.npy", member_gc_coverages_cf)
+        memb += 1
 
     
     ###########
@@ -694,53 +560,9 @@ def main():
         all_mae_cf = mae_1300_cf.clone()
 
     # save MAE arrays for later evaluation
-    # f"{save_path_eth}/data/
-
     torch.save(all_mae_fact, f"{save_path_eth}/data/all_mae_fact.pt")
     torch.save(all_mae_cf, f"{save_path_eth}/data/all_mae_cf.pt")
     
-    ### plot histograms ###
-
-    data_mae = all_mae_fact.flatten().numpy()
-    data_mae_cf = all_mae_cf.flatten().numpy()
-    # compute medians
-    median_mae = np.nanmedian(data_mae)
-    median_mae_cf = np.nanmedian(data_mae_cf)
-
-    
-    # create figure and axis
-    fig, ax = plt.subplots(figsize=(8,6))
-    
-    # plot histograms
-    ax.hist(data_mae, bins=50, density=True, label="Fact", color="tab:red", alpha=0.5)
-    ax.axvline(median_mae, color="tab:red", linestyle="--", linewidth=2, label=f"Fact median: {median_mae:.3f}")
-    
-    ax.hist(data_mae_cf, bins=50, density=True, label="CF", color="tab:blue", alpha=0.5)
-    ax.axvline(median_mae_cf, color="tab:blue", linestyle="--", linewidth=2, label=f"CF median: {median_mae_cf:.3f}")
-    
-    # labels and ticks
-    label_fs = 22
-    ax.set_xlabel(r"MAE", fontsize=label_fs)
-    ax.set_ylabel("Density", fontsize=label_fs)
-    ax.tick_params(axis='both', labelsize=16)
-    
-    # legend and layout
-    ax.legend(frameon=False, fontsize=14)
-    fig.tight_layout()
-    
-    # save and show
-    fig.savefig(f"{save_path_eth}/MAE_spatial.pdf")
-    plt.show()
-    
-
-    
-    
-
-    
-    
-    
-
-
 
 if __name__ == "__main__":
     main()
