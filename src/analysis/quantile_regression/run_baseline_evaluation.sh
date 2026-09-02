@@ -28,7 +28,7 @@ for domain in "${domain_list[@]}"; do
         fi
 
         python evaluate_pytorch_quantile_regression.py \
-            --model_path "${MODEL_PATH}/QR_baseline_ordered_quantiles/v5_quantile_regression_${domain}/" \
+            --model_path "${MODEL_PATH}/QR_baseline/v5_quantile_regression_${domain}/" \
             --qr_epoch 100 \
             --results_save_path qr_baseline_eval_results_trained_ordered/ \
             --compare_model "${MODEL_PATH}/${DAE_MODEL}/dae_ensemble_after_${epochs}_epochs/ETH_ensemble_after_${epochs}_epochs/ETH_${climate}_dpa_ens_${epochs}_dataset_restored.nc" \
