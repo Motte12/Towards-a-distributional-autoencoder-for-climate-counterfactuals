@@ -42,8 +42,8 @@ Towards-a-distributional-autoencoder-for-climate-counterfactuals/
 
 0. Code and data setup
     - clone this repository
-    - get the data from ...
-    - in `settings.json` adjust the paths to the data folder 
+    - get the data folder from 10.5281/zenodo.22015540
+    - in `settings.json` adjust paths `data`, `output_dir` and `other_data` to the corresponding data folder directories (input_data, output_data, other_data respectively)
 2. Create a conda environement using the environment.yaml file ([explained here](https://docs.conda.io/projects/conda/en/stable/user-guide/tasks/manage-environments.html#creating-an-environment-from-a-file))
 3. Either reproduce the exact results from the paper (directly jump to step 7) or train the models from scratch (continue with step 4, note that results will slightly differ from the paper due to stochasticity)
 ---

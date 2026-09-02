@@ -277,7 +277,7 @@ def main():
             },
         )
         
-        #ds_domain.to_netcdf(f"{save_path_eth}/data/domain_mean_{args.domain}.nc")
+        ds_domain.to_netcdf(f"{save_path_eth}/data/domain_mean_{args.domain}.nc")
         
         # --- Scatter plot: true vs predicted ---
         fig, ax = plt.subplots(figsize=(7, 7))
