@@ -1,15 +1,12 @@
 import numpy as np
-from sklearn.linear_model import QuantileRegressor
 import matplotlib.pyplot as plt
 import xarray as xr
 import json
-from joblib import Parallel, delayed
 import torch
 import pytorch_quantile_regression as pqr
 import pandas as pd
 import argparse
 import sys
-#sys.path.append('/Users/friederl/Documents/EcoN_project/LLAAE/DPA/code/dpa_for_llaae')
 import utils as ut
 import evaluation as evaluation
 import os
@@ -65,7 +62,6 @@ def main():
     ###########################################################
     ### Plot Training loss curves and smoothed pinball loss ###
     ###########################################################
-    
     # Look at loss curves
     csv_path = f"{args.model_path}training_log.csv"
     
@@ -287,12 +283,11 @@ def main():
     with open(f"{model_path}metadata.json", "r") as f:
         meta = json.load(f)
     
-    #quantiles = meta["quantiles"]
     n_features = meta["n_features"]
     n_quantiles = len(quantiles)
     
     # ---- Load checkpoint ----
-    ckpt_path = f"{args.model_path}checkpoint_epoch_{args.qr_epoch}.pth"#meta["last_checkpoint"]
+    ckpt_path = f"{args.model_path}checkpoint_epoch_{args.qr_epoch}.pth"
     checkpoint = torch.load(ckpt_path, map_location="cpu", weights_only=False)
     
     # ---- Rebuild model ----
@@ -312,13 +307,8 @@ def main():
     #################
     ### Test data ###
     #################
+    settings_file_path = f"{args.data_version}"
     
-    if args.data_version not in ["v1", "v2", "v3", "v4"]:
-        settings_file_path = f"{args.data_version}"
-    
-    else:
-        settings_file_path = f"{args.data_version}_dpa_train_settings.json" #used v2 here for a long time
-
     # open settings file
     with open(settings_file_path, 'r') as file:
             settings = json.load(file)
@@ -339,11 +329,8 @@ def main():
             trefht_eth = xr.open_dataset(ds_eth)
             
 
-    if bool(args.eval_era5):
-        trefht_eth = trefht_eth.sel(time=slice("1940","2023"))
-    
-
-    
+    #if bool(args.eval_era5):
+    #    trefht_eth = trefht_eth.sel(time=slice("1940","2023"))
     
     # cut test data
     trefht_eth_ger = trefht_eth.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))
@@ -366,12 +353,11 @@ def main():
     ##################################
     z500_le_path = os.path.join(settings['paths']['data'], settings['paths']['dataset_z500'])
     predictors_combined_le_pre = xr.open_dataset(z500_le_path).pseudo_pcs
-    #predictors_combined_le_pre = xr.open_dataset(settings['dataset_z500']).pseudo_pcs
     predictors_combined_le = predictors_combined_le_pre.values
     print("predictors combined shape:", predictors_combined_le.shape)
 
     ### STANDARDIZE DATA ###
-    if args.data_version == "v1" or args.data_version == "v4" or args.standardize_predictors:
+    if args.standardize_predictors:
         print("Data standardized here")
         ## train
         train_predictors, train_mean, train_std = ut.standardize_numpy(predictors_combined_le[:90*4769, :])
@@ -384,10 +370,6 @@ def main():
         
         ## test data
         z500_test_np_pre, _, _ = ut.standardize_numpy(z500_test.values, train_mean, train_std)
-
-        # standardize only fGMT with train statistics
-        #z500_test_np_pre_dummy, _, _ = ut.standardize_numpy(z500_test.values, train_mean[0,-1], train_std[0,-1])
-        #z500_test_np_pre[:,-1] = z500_test_np_pre_dummy[:,-1]
         
     else:
         print("predictors already standardized")
@@ -414,34 +396,22 @@ def main():
     # set counterfactual fGMT when evaluating counterfactuals
     if args.eval_counterfactuals:
         pi_period_mean = predictors_combined_le_pre.isel(time=slice(0,4769)).sel(time=slice("1850","1900")).isel(mode=1000).mean().values
-        cf_fgmt = (pi_period_mean - train_mean[0,-1]) / train_std[0,-1]
+        cf_fgmt = (pi_period_mean - train_mean[0,-1]) / train_std[0,-1] # standardize pi_period_mean
 
         # assign value to test set
         X_test_torch[:,-1] = torch.tensor(cf_fgmt)
         print("cf_fgmt:", cf_fgmt)
     
-    #########################
-    ### Model predictions ###
-    #########################
+    #############################
+    ### QR models predictions ###
+    #############################
 
     # Quantile regression model 
     with torch.no_grad():
         preds = model(X_test_torch)   # shape (N_test, n_quantiles)
-    quantile_predictions = preds.cpu().numpy() # trnasform into numpy
-
-    # compute R2
-    y_true_qr = trefht_eth_ger_mean
-    y_pred_qr = quantile_predictions[:, 9]
     
-    # Create mask: keep only entries where both are finite
-    mask = np.isfinite(y_true_qr) & np.isfinite(y_pred_qr)
-    
-    y_t = torch.from_numpy(y_true_qr[mask])
-    y_p = torch.from_numpy(y_pred_qr[mask])
-    print("TRUE/PREDICTED shapes:", y_t.shape, y_p.shape)
-
-    mae_t_qr = evaluation.mae_cols(y_t, y_p, dim=0)
-    print("MAE QR:", mae_t_qr)
+    # predictions
+    quantile_predictions = preds.cpu().numpy() # transform into numpy
 
 
     ###################################
@@ -455,63 +425,14 @@ def main():
     trefht_dpa_trans_ger = dpa_ds.TREFHT.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))
 
     
-    # calculate weighted means
+    # calculate weighted spatial mean
     #weights
     weights_ger_pre = np.cos(np.deg2rad(trefht_dpa_trans_ger["lat"]))
     weights_ger = weights_ger_pre / weights_ger_pre.sum()
     trefht_dpa_trans_ger_mean = trefht_dpa_trans_ger.weighted(weights_ger).mean(dim=("lat", "lon"))
     
-    ##################
-    ##################
-    ##################
-
-    # miscellaneous assignments
-    # prepare data for validation 
-    X_test_np = z500_test_np
-    y_test_np = trefht_eth_ger_mean
-    
-    
     # DPA predicted quantiles
-    dpa_trans_predicted_quantiles = np.quantile(trefht_dpa_trans_ger_mean.values.T, np.linspace(0.01, 0.99, 99), axis=1).T
-
-    print("####################################")
-    print("DPA trans predicted quantiles shape:",dpa_trans_predicted_quantiles.shape)
-    print("DPA trans predicted quantiles:",dpa_trans_predicted_quantiles)
-    print("####################################")
-
-    if args.compare_model is not None:    
-        quantile_predictions_dpa = dpa_trans_predicted_quantiles
-
-    
-    y = trefht_eth_ger_mean #y_test_np
-    q_hat = quantile_predictions  # (N_test, n_quantiles)
-    if args.compare_model is not None:
-        q_hat_dpa = quantile_predictions_dpa
-
-
-    # compute MAE
-    y_true = trefht_eth_ger_mean
-    y_pred = dpa_trans_predicted_quantiles[:, 49]
-    
-    # Create mask: keep only entries where both are finite
-    mask = np.isfinite(y_true) & np.isfinite(y_pred)
-    
-    y_t = y_true[mask]
-    y_p = y_pred[mask]
-
-    y_t = torch.from_numpy(y_true[mask])
-    y_p = torch.from_numpy(y_pred[mask])
-    print("TRUE/PREDICTED shapes:", y_t.shape, y_p.shape)
-
-    mae_t_dae = evaluation.mae_cols(y_t, y_p, dim=0)
-    print("MAE DAE:", mae_t_dae)
-    
-    
-
-
-
-
-
+    quantile_predictions_dpa = np.quantile(trefht_dpa_trans_ger_mean.values.T, np.linspace(0.01, 0.99, 99), axis=1).T
 
 
     ####################
@@ -541,8 +462,8 @@ def main():
         # 1) CALIBRATION CURVE (top-left): QR vs DPA
         ax_cal = ax
     
-        cover_qr  = compute_coverage_per_quantile(y_test_np, quantile_predictions,     quantiles)
-        cover_dpa = compute_coverage_per_quantile(y_test_np, quantile_predictions_dpa, quantiles)
+        cover_qr  = evaluation.compute_coverage_per_quantile(trefht_eth_ger_mean, quantile_predictions,     quantiles)
+        cover_dpa = evaluation.compute_coverage_per_quantile(trefht_eth_ger_mean, quantile_predictions_dpa, quantiles)
         
         
         if args.eval_counterfactuals:
@@ -552,7 +473,7 @@ def main():
             dae_color="tab:red"
             climate="Factual"
 
-        ax_cal.plot(quantiles, cover_qr, label=f"QR {climate}", color="darkcyan", linewidth=1)
+        ax_cal.plot(quantiles, cover_qr, label=f"QR {climate}", color="goldenrod", linewidth=1) # color='#4daf4a'
         ax_cal.plot(quantiles, cover_dpa, label=f"DAE {climate}", color=dae_color, linewidth=1)
 
         # compute MAE ###
@@ -563,20 +484,20 @@ def main():
         mae_dae_095 = np.mean(np.abs(quantiles[-1]-cover_dpa[-1]))
 
         # print mae
-        ax_cal.text(0.99, 0.2,      # x=0.95, y=0.95 in axes coordinates (0-1)
-                r" $\mathrm{QR\ MAE_{cal}}$:" + f" {mae_qr:.3f}",   # text to display
-                transform=ax_cal.transAxes,  # use axes coordinates
-                ha='right',      # horizontal alignment
-                va='top',        # vertical alignment
+        ax_cal.text(0.99, 0.2,                               # x=0.95, y=0.95 in axes coordinates (0-1)
+                r" $\mathrm{QR\ CE}$:" + f" {mae_qr:.3f}",   # text to display
+                transform=ax_cal.transAxes,                  # use axes coordinates
+                ha='right',                                  # horizontal alignment
+                va='top',                                    # vertical alignment
                 fontsize=6,
                 color='black'
             )
 
-        ax_cal.text(0.99, 0.1,      # x=0.95, y=0.95 in axes coordinates (0-1)
-                r"$\mathrm{DAE\ MAE_{cal}}$:" + f" {mae_dae:.3f}",   # text to display
-                transform=ax.transAxes,  # use axes coordinates
-                ha='right',      # horizontal alignment
-                va='top',        # vertical alignment
+        ax_cal.text(0.99, 0.1,                                # x=0.95, y=0.95 in axes coordinates (0-1)
+                r"$\mathrm{DAE\ CE}$:" + f" {mae_dae:.3f}",   # text to display
+                transform=ax.transAxes,                       # use axes coordinates
+                ha='right',                                   # horizontal alignment
+                va='top',                                     # vertical alignment
                 fontsize=6,
                 color='black'
             )
@@ -587,21 +508,20 @@ def main():
             subpanel="b)"
         
         ax.text(
-                0.035, 0.96,      # x=0.95, y=0.95 in axes coordinates (0-1)
-                f"{subpanel}",   # text to display
+                0.035, 0.96,             # x=0.95, y=0.95 in axes coordinates (0-1)
+                f"{subpanel}",           # text to display
                 transform=ax.transAxes,  # use axes coordinates
-                ha='left',      # horizontal alignment
-                va='top',        # vertical alignment
+                ha='left',               # horizontal alignment
+                va='top',                # vertical alignment
                 fontsize=8,
                 color='black'
             )
 
         
-        ax_cal.plot([0, 1], [0, 1], "k--", label="Ideal 1:1", linewidth=1)
+        ax_cal.plot([0, 1], [0, 1], "k--", label="Ideal 1:1", linewidth=0.5)
     
         ax_cal.set_xlabel("Nominal quantile τ", fontsize=8)
-        #ax_cal.set_ylabel("Empirical fraction of points \n with y_true ≤ q̂_τ(x)", fontsize=10)
-        ax_cal.set_ylabel("Points in quantile", fontsize=8)
+        ax_cal.set_ylabel("Empirical coverage " + r"$\hat{C}$", fontsize=8)
 
         ax.set_yticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
         ax.set_xticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
@@ -611,7 +531,7 @@ def main():
 
         plt.tight_layout()
         plt.savefig(f"{args.results_save_path}CALIBRATION_{args.domain}_{args.eval_epochs}epochs_qr_vs_dpa_CF={bool(args.eval_counterfactuals)}_{args.dae_model}.pdf")
-        sys.exit()
+
 
         
 
@@ -624,26 +544,6 @@ def smooth_pinball_loss(u, tau, delta):
         u = np.asarray(u)
         smooth_abs = np.sqrt(u**2 + delta**2)
         return 0.5 * (smooth_abs + (2*tau - 1.0) * u)
-
-def compute_coverage_per_quantile(y_true, q_preds, quantiles):
-    """
-    y_true: (N,)
-    q_preds: (N, Q)
-    quantiles: (Q,)
-    Returns: empirical coverages array of shape (Q,)
-    """
-    y_true = np.asarray(y_true).reshape(-1)
-    q_preds = np.asarray(q_preds)
-    quantiles = np.asarray(quantiles)
-
-    coverages = []
-    for j in range(len(quantiles)):
-        tau = quantiles[j]
-        q_tau = q_preds[:, j]
-        cov = np.mean(y_true <= q_tau)
-        coverages.append(cov)
-
-    return np.array(coverages)
 
     
 if __name__ == "__main__":

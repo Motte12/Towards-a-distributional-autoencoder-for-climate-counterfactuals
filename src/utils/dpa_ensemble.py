@@ -1,5 +1,4 @@
 import torch
-#from torchvision.utils import make_grid
 from torch.utils.data import TensorDataset, DataLoader
 import torch.nn as nn
 
@@ -47,7 +46,7 @@ def load_test_data(settings_file_path, standardize_predictors=0):
     ### Load Z500 data ###
     z500_path = os.path.join(settings['paths']['data'], settings['paths']['dataset_z500'])
     ds_z500_pre = xr.open_dataset(z500_path) #settings['dataset_z500'])
-    pi_period_mean = ds_z500_pre.pseudo_pcs.isel(mode=1000, time=slice(0,4769)).sel(time=slice("1850","1900")).mean().values
+    pi_period_mean = ds_z500_pre.pseudo_pcs.isel(mode=1000, time=slice(0,4769)).sel(time=slice("1850","1900")).mean().values #extract the mean fGMT in 1850-1900
     print("mean_2028 xarray", ds_z500_pre.pseudo_pcs.isel(mode=1000, time=slice(0,4769)).sel(time="2028"))
     
     mean_2028 = ds_z500_pre.pseudo_pcs.isel(mode=1000, time=slice(0,4769)).sel(time="2028").mean().values
@@ -81,13 +80,16 @@ def load_test_data(settings_file_path, standardize_predictors=0):
     return z500_test, z500_train, mask_x_te, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced, pi_period_mean, mean_2028, mean_2053
 
 def load_eth_test_data(settings_file_path, standardize_predictors=0):
+    """
+    Loads ETH test data (CESM2-ETH_fact and CESM2-ETH_cf-nudge). 
+    """
 
     with open(settings_file_path, 'r') as file:
         settings = json.load(file)
+    
     ##########################################################
     ### load large ensemble statistics for standardization ###
     ##########################################################
-    
 
     ### Load Z500 data ###
     ds_z500_train_path = os.path.join(settings['paths']['data'], settings['paths']['dataset_z500'])
@@ -97,7 +99,6 @@ def load_eth_test_data(settings_file_path, standardize_predictors=0):
 
     ds_z500_train=ds_z500_pre_train.isel(time=slice(0,(4769 * 90)))
 
-    
     z500_train_pre, mean_train, std_train = ut.standardize_numpy(ds_z500_train.pseudo_pcs.values)
     mean_gmt = mean_train[0,-1]
     std_gmt = std_train[0,-1]
@@ -113,7 +114,6 @@ def load_eth_test_data(settings_file_path, standardize_predictors=0):
     ### Load temperature data ###
     ds_test_eth_fact_path = os.path.join(settings['paths']['data'], settings['paths']['dataset_trefht_eth_transient'])
     ds_test_eth_fact = xr.open_dataset(ds_test_eth_fact_path) #(settings['dataset_trefht_eth_transient'])
-    
     
     # transform to torch tensors
     x_te_eth_fact = ut.data_to_torch(ds_test_eth_fact, "TREFHT")
@@ -144,25 +144,22 @@ def load_eth_test_data(settings_file_path, standardize_predictors=0):
     
     print("ATTENTION: Z500 PC time-series is standardized manually here")
     if standardize_predictors:
-        # old: standardize test set itself
-        #ds_z500_standardized, _, _ = ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values)
-        #ds_z500_standardized_dummy, _, _ = ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values, mean = mean_train[:,-1], std = std_train[:,-1])
-        #ds_z500_standardized[:,-1] = ds_z500_standardized_dummy[:,-1]
-
-        # new and supposingly correct: standardize with train statistics
+        # standardize with train statistics
         ds_z500_standardized, _, _ = ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values, mean_train, std_train)
-
-        
+  
     else:
         ds_z500_standardized = ds_z500_pre.pseudo_pcs.values
+    
     print("z500 dataset shape", ds_z500_standardized.shape)
     z500 = torch.from_numpy(ds_z500_standardized)
 
     return z500, mask_x_te_eth_fact, ds_test_eth_fact, ds_test_eth_cf, x_te_reduced_eth_fact, x_te_reduced_eth_cf, mean_gmt, std_gmt 
 
-def load_era5_test_data(settings_file_path, standardize_predictors=0, standardization_type="inherent"):
+def load_era5_test_data(settings_file_path, standardize_predictors=0, standardization_type="inherent", detrended=False):
     """
-    standardization_type: "train_stats" (standardize with train set mean and std) or "inherent" (standardize Era5 inherently)
+    Loads CESM2-ERA5_fact−nudge and CESM2-ERA5_cf−nudge
+    
+    standardization_type: "train_stats" (standardize with train set mean and std) or "inherent" (standardize with CESM2-Era5-nudged mean and std)
     """
 
     with open(settings_file_path, 'r') as file:
@@ -192,14 +189,20 @@ def load_era5_test_data(settings_file_path, standardize_predictors=0, standardiz
     # TREFHT 
     ## factual
     
-    
     ### Load temperature data ###
-    ds_test_eth_fact_path = os.path.join(settings['paths']['data'], settings['paths']['dataset_trefht_era5_transient'])
-    ds_test_eth_fact = xr.open_dataset(ds_test_eth_fact_path) #(settings['dataset_trefht_eth_transient'])
-    
+    # load orig. era5
+    ds_test_eth_fact_dummy_path = os.path.join(settings['paths']['data'], settings['paths']['dataset_trefht_era5_transient']) # this one uses original ERA5 data
+    ds_test_eth_fact_dummy = xr.open_dataset(ds_test_eth_fact_dummy_path) #(settings['dataset_trefht_eth_transient'])
+    print("ERA5 ORIG:",ds_test_eth_fact_dummy)
+
+    # should be correct using cesm2 era5-nudged
+    ds_test_eth_fact_path = os.path.join(settings['paths']['data'], settings['paths']['dataset_trefht_era5_fact_nudged'])
+    ds_test_eth_fact = xr.open_dataset(ds_test_eth_fact_path).rename({"TSA": "TREFHT"}).transpose("lat", "lon", "time").assign_coords(lat=ds_test_eth_fact_dummy.lat, lon=ds_test_eth_fact_dummy.lon)
+    print("CESM2-ERA5 NUDGE",ds_test_eth_fact)
     
     # transform to torch tensors
-    x_te_eth_fact = ut.data_to_torch(ds_test_eth_fact, "TREFHT")
+    # rename TSA to TREFHT if using CESM2 nudged to ERA5
+    x_te_eth_fact = ut.data_to_torch(ds_test_eth_fact, "TREFHT") # for ERA5
 
     # remove NaNs from data
     x_te_reduced_eth_fact, mask_x_te_eth_fact = ut.remove_nan_columns(x_te_eth_fact)
@@ -211,30 +214,33 @@ def load_era5_test_data(settings_file_path, standardize_predictors=0, standardiz
     ds_test_eth_cf_path = os.path.join(settings['paths']['data'], settings['paths']['dataset_trefht_era5_nudged'])
     ds_test_eth_cf = xr.open_dataset(ds_test_eth_cf_path) #(settings['dataset_trefht_eth_nudged_shifted'])
     
-    
     # transform to torch tensors
     x_te_eth_cf = ut.data_to_torch(ds_test_eth_cf, "TREFHT")
 
     # remove NaNs from data
     x_te_reduced_eth_cf, mask_x_te_eth_cf = ut.remove_nan_columns(x_te_eth_cf)
     
-    
     # Z500
     
     ### Load Z500 data ###
-    ds_z500_path = os.path.join(settings['paths']['data'], settings['paths']['dataset_z500_era5'])
+    if detrended:
+        ds_z500_path = os.path.join(settings['paths']['data'], settings['paths']['dataset_z500_era5_detrended'])
+    else:
+        ds_z500_path = os.path.join(settings['paths']['data'], settings['paths']['dataset_z500_era5'])
     ds_z500_pre = xr.open_dataset(ds_z500_path) #(settings['dataset_z500_eth_test'])
     
     
     print("ATTENTION: Z500 PC time-series is standardized manually here")
     if standardize_predictors:
-        if standardization_type=="inherent":
+        #if standardization_type=="inherent":
+        if standardization_type in ["inherent", "inherent_detrended"]:
             # old: standardize test set itself
             ds_z500_standardized, _, _ = ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values)
             ds_z500_standardized_dummy, _, _ = ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values, mean = mean_train[:,-1], std = std_train[:,-1])
             ds_z500_standardized[:,-1] = ds_z500_standardized_dummy[:,-1]
 
-        elif standardization_type=="train_stats":
+        #elif standardization_type=="train_stats":
+        elif standardization_type in ["train_stats","train_stats_detrended"]:
             # new and supposingly correct: standardize with train statistics
             ds_z500_standardized, _, _ = ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values, mean_train, std_train)
 
@@ -267,6 +273,9 @@ def create_dpa_model(device,
                      decoder_path,
                      lm_path
                      ):
+    """
+    Creates a DAE model with specified architecture.
+    """
     # Encoder
     if encoder == "PCA":
         pca, pcs = pcae.get_PC(ds_train)
@@ -365,6 +374,9 @@ def create_ensemble(ensemble_type,
                     autoencode=False, # whether to use only autoencoder or not,
                     standardize_predictors=0
                    ):
+    """
+    Generates factual and counterfactual DAE ensembles with specified DAE model.
+    """
     
     print("Autoencode:", autoencode)
     era5_future_cfs=False
@@ -385,8 +397,20 @@ def create_ensemble(ensemble_type,
         notLE=True
         era5_future_cfs=True
 
+    elif ensemble_type == "ERA5_inherent_detrended":
+        z500_test, mask, ds_test, ds_test_eth_cf, x_te_reduced, x_te_reduced_cf, mean_gmt, std_gmt = load_era5_test_data(settings_file_path, standardize_predictors, detrended=True)
+        _, _, _, _, _, _, _, _, pi_period_mean, mean_2028, mean_2053 = load_test_data(settings_file_path, standardize_predictors)
+        notLE=True
+        era5_future_cfs=True
+
     elif ensemble_type == "ERA5_train_stats":
         z500_test, mask, ds_test, ds_test_eth_cf, x_te_reduced, x_te_reduced_cf, mean_gmt, std_gmt = load_era5_test_data(settings_file_path, standardize_predictors, standardization_type="train_stats")
+        _, _, _, _, _, _, _, _, pi_period_mean, mean_2028, mean_2053 = load_test_data(settings_file_path, standardize_predictors)
+        notLE=True
+        era5_future_cfs=True
+
+    elif ensemble_type == "ERA5_train_stats_detrended":
+        z500_test, mask, ds_test, ds_test_eth_cf, x_te_reduced, x_te_reduced_cf, mean_gmt, std_gmt = load_era5_test_data(settings_file_path, standardize_predictors, standardization_type="train_stats", detrended=True)
         _, _, _, _, _, _, _, _, pi_period_mean, mean_2028, mean_2053 = load_test_data(settings_file_path, standardize_predictors)
         notLE=True
         era5_future_cfs=True
@@ -394,9 +418,6 @@ def create_ensemble(ensemble_type,
 
     if notLE:
         print("std_gmt:", std_gmt)
-        #z500_test, mask, ds_test, x_te_reduced, x_te_reduced_cf = load_eth_test_data() # x_te_reduced is x_te_reduced_eth_fact
-    #print("ds_train:", ds_train)
-    
         print("mean gmt shape:", mean_gmt.shape)
         print("mean gmt:", mean_gmt)
         print("std gmt shape:", std_gmt.shape)
@@ -450,9 +471,9 @@ def create_ensemble(ensemble_type,
         cf_predictors_2053 = z500_test_2003_cf.clone()
         cf_predictors_2053[:,-1] = float(cf_2053)
         print("CF2053 value:", float(cf_2053))
+        
         print("z500_test shape:", z500_test.shape)
         # counterfactuals for 2028 and 2053
-        #z500_test_cf[:,-1] = float(cf_fgmt) #-0.7389813694652794 # for fGMT standardized
         for i in range(1, ensemble_size+1):
             # create 2028 counterfactuals
             gen_te_cf_2028 = model_dec(model_pred(cf_predictors_2028.to(device).float()))
@@ -461,11 +482,6 @@ def create_ensemble(ensemble_type,
             # create 2053 counterfactuals
             gen_te_cf_2053 = model_dec(model_pred(cf_predictors_2053.to(device).float()))
             torch.save(gen_te_cf_2053, f"{save_path}/cf_era5_2053_gen{i}_te.pt")
-    
-        # skip for test reasons    
-        #create_counterfactual_ensemble=False
-        #create_factual_ensemble=False
-
 
     
     # actually create ensemble
@@ -511,206 +527,11 @@ def create_ensemble(ensemble_type,
     
         
 
-    if ensemble_type in ["ETH", "ERA5_inherent", "ERA5_train_stats"]:
+    if ensemble_type in ["ETH", "ERA5_inherent","ERA5_inherent_detrended", "ERA5_train_stats", "ERA5_train_stats_detrended"]:
         ds_train = "no ds_train present"
 
     return mask, ds_train, ds_test, x_te_reduced
 
-
-#############################
-######### 1D ################
-#############################
-def create_dpa_model_1d(device,
-                     encoder,
-                     in_dim,
-                     latent_dim,
-                     num_layers,
-                     hidden_dim,
-                     bn,
-                     out_act,
-                     resblock, 
-                     noise_dim_dec,
-                     in_dim_lm,
-                     num_layers_lm,
-                     hidden_dim_lm,
-                     noise_dim_lm,
-                     encoder_path,
-                     decoder_path,
-                     lm_path
-                     ):
-    # Encoder
-    if encoder == "PCA":
-        pca, pcs = pcae.get_PC(ds_train)
-        eofs_torch_first = pca.components_[:latent_dim, :] # take only the first latent_dim PCs, pca.components_ has shape: (n_components_total, n_features) = (modes, space)
-        
-        # "encode" by projecting onto PCs
-        def model_enc(x, eofs=eofs_torch_first):
-            teofs = ((torch.from_numpy(eofs)).T).to(device)
-            return torch.matmul(x, teofs)
-            
-        
-    elif encoder == "learnable":
-        model_enc = StoNet(in_dim=in_dim,
-                           out_dim=latent_dim,
-                           num_layer=num_layers,
-                           hidden_dim=hidden_dim,
-                           noise_dim=0,
-                           add_bn=bn,
-                           out_act=out_act,
-                           resblock=resblock).to(device)
-    # Decoder
-    model_dec = StoNet(in_dim=latent_dim,
-                       out_dim=1, #in_dim,
-                       num_layer=num_layers,
-                       hidden_dim=hidden_dim,
-                       noise_dim=noise_dim_dec,
-                       add_bn=bn,
-                       out_act=out_act,
-                       resblock=resblock).to(device)
-    # Latent Map
-    model_pred = StoNet(in_dim=in_dim_lm,
-                        out_dim=latent_dim, 
-                        num_layer=num_layers_lm,
-                        hidden_dim=hidden_dim_lm, 
-                        noise_dim=noise_dim_lm,
-                        add_bn=bn, 
-                        out_act=out_act, 
-                        resblock=resblock).to(device)
-    print("device:", device)
-    # Load the state dict from the .pt file
-    if str(device)=="cuda":
-        # using GPU
-        enc_dict = torch.load(encoder_path)
-        dec_dict = torch.load(decoder_path)
-        lm_dict = torch.load(lm_path)
-    
-    elif str(device)=="cpu":    
-        # using CPU
-        enc_dict = torch.load(encoder_path, map_location=torch.device('cpu'))
-        dec_dict = torch.load(decoder_path, map_location=torch.device('cpu'))
-        lm_dict = torch.load(lm_path, map_location=torch.device('cpu'))
-    
-    # Load the state dict into the internal DPA model
-    model_enc.load_state_dict(enc_dict)
-    model_dec.load_state_dict(dec_dict)
-    model_pred.load_state_dict(lm_dict)
-
-    print("DPA model created")
-
-    total_params0 = sum(p.numel() for p in model_enc.parameters())
-    print(f"Total encoder parameters: {total_params0:,}")
-
-    total_params1 = sum(p.numel() for p in model_dec.parameters())
-    print(f"Total decoder parameters: {total_params1:,}")
-
-    total_params2 = sum(p.numel() for p in model_pred.parameters())
-    print(f"Total latent map parameters: {total_params2:,}")
-    
-    
-    return model_enc, model_dec, model_pred
-
-def create_ensemble_1d(ensemble_type,
-                    ensemble_size,
-                    save_path,
-                    device,
-                    encoder,
-                    in_dim,
-                    latent_dim,
-                    num_layers,
-                    hidden_dim,
-                    bn,
-                    out_act,
-                    resblock, 
-                    noise_dim_dec,
-                    in_dim_lm,
-                    num_layers_lm,
-                    hidden_dim_lm,
-                    noise_dim_lm,
-                    encoder_path,
-                    decoder_path,
-                    lm_path,
-                    settings_file_path,
-                    create_factual_ensemble=False,
-                    create_counterfactual_ensemble=False,
-                    create_train_ensemble=False,
-                    autoencode=False, # whether to use only autoencoder or not,
-                    standardize_predictors=0
-                   ):
-    
-    print("Autoencode:", autoencode)
-    # load data
-    if ensemble_type == "LE":
-        #z500_test, z500_train, mask, ds_train, ds_test, x_te_reduced = load_test_data()
-        z500_test, z500_train, mask, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced, pi_period_mean, mean_2028, mean_2053 = load_test_data(settings_file_path, standardize_predictors)
-
-    elif ensemble_type == "ETH":
-        z500_test, mask, ds_test, ds_test_eth_cf, x_te_reduced, x_te_reduced_cf = load_eth_test_data(settings_file_path, standardize_predictors)
-        #z500_test, mask, ds_test, x_te_reduced, x_te_reduced_cf = load_eth_test_data() # x_te_reduced is x_te_reduced_eth_fact
-        
-        # z500_standardized, mask_x_te_eth_fact, ds_test_eth_fact, x_te_reduced_eth_fact, x_te_reduced_eth_cf
-    print("Data loaded")
-    # create model
-    model_enc, model_dec, model_pred = create_dpa_model_1d(device,
-                                                        encoder,
-                                                        in_dim,
-                                                        latent_dim,
-                                                        num_layers,
-                                                        hidden_dim,
-                                                        bn,
-                                                        out_act,
-                                                        resblock, 
-                                                        noise_dim_dec,
-                                                        in_dim_lm,
-                                                        num_layers_lm,
-                                                        hidden_dim_lm,
-                                                        noise_dim_lm,
-                                                        encoder_path,
-                                                        decoder_path,
-                                                        lm_path
-                                                       )
-    if encoder == "learnable":
-        model_enc.eval()
-    model_dec.eval()
-    model_pred.eval()
-
-    # actually create ensemble
-    if create_factual_ensemble:
-        if autoencode:
-            print("Autoencoding factual ETH test set ...")
-            for i in range(1, ensemble_size+1):
-                gen_te = model_dec(model_enc(x_te_reduced.to(device).float()))
-                torch.save(gen_te, f"{save_path}/gen{i}_te.pt")
-        else:
-            print("Normal predictions ...")
-            for i in range(1, ensemble_size+1):
-                gen_te = model_dec(model_pred(z500_test.to(device).float()))
-                torch.save(gen_te, f"{save_path}/gen{i}_te.pt")
-
-    if create_train_ensemble:
-            for i in range(1, ensemble_size+1):
-                gen_te = model_dec(model_pred(z500_train.to(device).float()))
-                torch.save(gen_te, f"{save_path}/gen{i}_te.pt")
-
-    if create_counterfactual_ensemble:
-        if autoencode:
-            print("Autoencoding nudged runs ... ")
-            for i in range(1, ensemble_size+1):
-                gen_te = model_dec(model_enc(x_te_reduced_cf.to(device).float()))
-                torch.save(gen_te, f"{save_path}/cf_gen{i}_te.pt")
-        else:
-            print("Normal cf predictions ...")
-            # replace GMTs with 0 for counterfactual predictions
-            z500_test_cf = z500_test
-            #z500_test_cf[:,-1] = 0 for fGMT not standardized
-            z500_test_cf[:,-1] = -0.7389813694652794 # for fGMT standardized
-            for i in range(1, ensemble_size+1):
-                gen_te_cf = model_dec(model_pred(z500_test_cf.to(device).float()))
-                torch.save(gen_te_cf, f"{save_path}/cf_gen{i}_te.pt")
-
-    if ensemble_type == "ETH":
-        ds_train = "no ds_train present"
-    print("ds_train:", ds_train)
-    return mask, ds_train, ds_test, x_te_reduced
 
     
     

@@ -152,7 +152,7 @@ def main():
     if args.ensemble_type=="ETH":
         climates=["gen", "cf_gen"]
 
-    elif args.ensemble_type in ["ERA5_inherent", "ERA5_train_stats"]:
+    elif args.ensemble_type in ["ERA5_inherent", "ERA5_inherent_detrended", "ERA5_train_stats", "ERA5_train_stats_detrended"]:
         climates=["gen", "cf_gen", "cf_era5_2028_gen", "cf_era5_2053_gen"]
 
     else:

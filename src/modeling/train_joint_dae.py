@@ -30,53 +30,38 @@ def main():
     ##############
     parser = argparse.ArgumentParser(description="Train a model with given hyperparameters.")
     parser.add_argument('--settings_file', type=str, default="../../settings.json", help='Settings file')
-    args = parser.parse_args()
-
-    # load default settings from settings.json
-    # settings
-    with open(args.settings_file, 'r') as file:
-        settings = json.load(file)
-
-    model_params = settings['model_parameters']
-    train_params = settings['training_parameters']
-    
-    #####################
-    ### add Arguments ###
-    #####################
-
-    ## Logistics
 
     ## Model
-    parser.add_argument('--encoder', type=str, default=model_params['enc'], help='Use learnable encoder (=neural) or fixed (=PCA)')
-    parser.add_argument('--in_dim', type=int, default=model_params['in_dim'], help='Input dimension into encoder')
-    parser.add_argument('--latent_dim', type=int, default=model_params['ld'], help='Latent dimension of the DPA')
-    parser.add_argument('--num_layer', type=int, default=model_params['nln'], help='Number of layers in encoder and decoder')
-    parser.add_argument('--hidden_dim', type=int, default=model_params['hdn'], help='Hidden dims in encoder and decoder')
-    parser.add_argument('--noise_dim_dec', type=int, default=model_params['ndd'], help='Dimension of noise added to decoder')
-    parser.add_argument('--resblock', type=int, default=model_params['resblock'], help="Whether to use residual block")
+    parser.add_argument('--encoder', type=str, help='Use learnable encoder (=neural) or fixed (=PCA)')
+    parser.add_argument('--in_dim', type=int, help='Input dimension into encoder')
+    parser.add_argument('--latent_dim', type=int, help='Latent dimension of the DPA')
+    parser.add_argument('--num_layer', type=int, help='Number of layers in encoder and decoder')
+    parser.add_argument('--hidden_dim', type=int, help='Hidden dims in encoder and decoder')
+    parser.add_argument('--noise_dim_dec', type=int, help='Dimension of noise added to decoder')
+    parser.add_argument('--resblock', type=int, help="Whether to use residual block")
     
-    parser.add_argument('--in_dim_lm', type=int, default=model_params['in_dim_lm'], help="Input dimension of the latent map")
-    parser.add_argument('--noise_dim_lm', type=int, default=model_params['ndl'], help='Dimension of noise added in latent map')
-    parser.add_argument('--num_layer_lm', type=int, default=model_params['num_layer_lm'], help='Number of layers in latent map')
-    parser.add_argument('--hidden_dim_lm', type=int, default=model_params['hdl'], help='Hidden dims in latent map')
-
+    parser.add_argument('--in_dim_lm', type=int, help="Input dimension of the latent map")
+    parser.add_argument('--noise_dim_lm', type=int, help='Dimension of noise added in latent map')
+    parser.add_argument('--num_layer_lm', type=int, help='Number of layers in latent map')
+    parser.add_argument('--hidden_dim_lm', type=int, help='Hidden dims in latent map')
     ## Training
-    parser.add_argument('--lr', type=float, default=train_params['lr'], help='Learning rate')
-    parser.add_argument('--batch_size', type=int, default=train_params['batch_size'], help='Batch size')
-    parser.add_argument('--epochs', type=int, default=train_params['epochs'], help='Number of training epochs')
-    parser.add_argument('--batch_norm', type=int, default=train_params['batch_norm'], help='Whether to use batch normalisation')
-
+    parser.add_argument('--lr', type=float, help='Learning rate')
+    parser.add_argument('--batch_size', type=int, help='Batch size')
+    parser.add_argument('--epochs', type=int, help='Number of training epochs')
+    parser.add_argument('--batch_norm', type=int, help='Whether to use batch normalisation')
     ## Loss
-    parser.add_argument('--lam', type=float, default=train_params['lam'], help="Weight between energy loss in Y and latent space")
-    parser.add_argument('--alpha', type=float, default=train_params['alpha'], help="Weight between AE reconstruction energy loss and energy loss of d(lm(X)) in Y ")
-    parser.add_argument('--include_pen_e', type=int, default=train_params['include_pen_e'], help='Whether to include KL-like (penalty_e) loss')
+    parser.add_argument('--lam', type=float, help="Weight between energy loss in Y and latent space")
+    parser.add_argument('--alpha', type=float, help="Weight between AE reconstruction energy loss and energy loss of d(lm(X)) in Y ")
+    parser.add_argument('--include_pen_e', type=int, help='Whether to include KL-like (penalty_e) loss')
 
     # Parse arguments
     args = parser.parse_args()
-    #settings_file_path = args.settings_file
+    with open(args.settings_file, 'r') as file:
+        settings = json.load(file)
     print("settings_file:", args.settings_file)
     print("args:", args)
 
+    # remaining fixed settings
     out_act = None 
     beta=1
 
@@ -342,24 +327,29 @@ def main():
             x = train_batch[0].to(device)
             y = train_batch[1].to(device)
             
+            # encoding
             e = model_enc(y)
+
+            # reconstructions (=decodings)
             rec1 = model_dec(e) 
             rec2 = model_dec(e)
-            
+
+            # latent predictions
             z1 = model_pred(x)
-            gen1 = model_dec(z1)
             z2 = model_pred(x)
+            
+            # decodings of latent predictions
+            gen1 = model_dec(z1)
             gen2 = model_dec(z2)
     
-            # FL
             # for plotting
             #z3 = model_pred(x)
             #gen3 = model_dec(z3)
-            
+
+            # energy loss of reconstructions
             loss_rec, s1_rec, s2_rec = energy_loss_two_sample(y, rec1, rec2, verbose=True, beta=beta)
             loss = loss_rec
             
-            #if include_KL:
             # energy loss of predicted z
             loss_pred_z, s1_pred_z, s2_pred_z = energy_loss_two_sample(e, z1, z2, verbose=True, beta=beta) #loss im latent space
             loss_pre = loss_rec + args.lam * loss_pred_z
@@ -372,13 +362,15 @@ def main():
                     loss = loss_pre + penalty_e #+ penalty_gen
 
                 else:
-                    loss = loss_pre #+ penalty_gen
+                    loss = loss_pre
                 
             else:
                 loss = loss_pre
-            
+
+            # energy loss of decoded latent predictions 
             loss_pred, s1_pred, s2_pred = energy_loss_two_sample(y, gen1, gen2, verbose=True, beta=beta)
-            
+
+            # add losses
             loss = loss + args.alpha * loss_pred
                 
             loss.backward()
