@@ -13,28 +13,36 @@ Towards-a-distributional-autoencoder-for-climate-counterfactuals/
 ├── src/
 │   ├── modeling/                   # Core modeling code
 │   │   ├── __init__.py
-│   │   ├── create_ensemble.sh      # Bash script to start create_test_ensemble.py
-│   │   ├── create_test_ensemble.py # Create an ensemble from a trained model
-│   │   ├── pca_encoder.py          # PCA encoder implementation
-│   │   ├── start_joint_training.sh # Launch training script for DAE
-│   │   └── train_joint_dae.py      # Train the model
-│   ├── analysis/                   # Model output analysis
+│   │   ├── create_ensemble.sh            # Create test ensemble
+│   │   ├── create_ERA5_test_ensemble.sh  # Create ERA5 test ensemble
+│   │   ├── create_test_ensemble.py       # Create an ensemble from a trained model
+│   │   ├── pca_encoder.py                # PCA encoder implementation
+│   │   ├── start_joint_training.sh       # Launch training script for DAE
+│   │   └── train_joint_dae.py            # Train the model
+│   ├── analysis/                         # Model output analysis
 │   │   ├── __init__.py
 │   │   ├── extended_abstract_figure.ipynb # Figure for extended abstract
-│   │   ├──Figure03.ipynb
-│   │   ├──Figure03_CF.ipynb
-│   │   ├──2028_2053_ERA5A_attribution_analysis.ipynb
-│   │   └── quantile_regression/                        # contains all baseline quantile regression related code
-│   │       ├── evaluate_pytorch_quantile_regression.py # compare DAE and baseline in regional domain
-│   │       ├── pytorch_quantile_regression.py          # train baseline quantile regression
-│   │       ├── run_baseline_evaluation.sh              # start baseline comparison
-│   │       └── submit_pytorch_quantile_regression.sh   # start quantile regression training
+│   │   ├── Figure03.ipynb
+│   │   ├── Figure03_CF.ipynb
+│   │   ├── 2028_2053_ERA5A_attribution_analysis.ipynb
+│   │   ├── test_hw_attribution.ipynb
+│   │   ├── quantile_regression/                        # contains all baseline quantile regression related code
+│   │   │   ├── evaluate_pytorch_quantile_regression.py # compare DAE and baseline in regional domain
+│   │   │   ├── pytorch_quantile_regression.py          # train baseline quantile regression
+│   │   │   ├── run_baseline_evaluation.sh              # start baseline comparison
+│   │   │   └── submit_pytorch_quantile_regression.sh   # start quantile regression training
+│   │   └── DAE_evaluation/
+│   │       ├── analysis_results_sheet_ETH_master_slim.py  # script for evaluating DAE ensembles 
+│   │       ├── evaluate_v5_ERA5_DAE_ensemble.sh           # script to start evaluation
+│   │       ├── evaluate_v5_ETH_DAE_ensemble.sh            # script to start evaluation
+│   │       ├── plot_data.ipynb                            # produce evaluation plots for ETH test data
+│   │       └── plot_data_ERA5_inherent_detrended.ipynb    # produce evaluation plots for ERA5 test data          
 │   └── utils/                      # Shared helper functions
 │       ├── __init__.py
 │       ├── utils.py                # Data processing and visualization utilities
 │       ├── dpa_ensemble.py         # DPA ensemble utilities
 │       └── evaluation.py           # Evaluation metrics
-└── _devicecuda100_6_100_100_1001_20_2_50_encoderislearnable_lambda0.5_alpha1.5_bs128_bnisFalse_lr0.0001_pene0 # Pre-trained model
+└── preprocessing/                  # Data preprocessing from raw data
 ```
 
 
@@ -47,7 +55,7 @@ Towards-a-distributional-autoencoder-for-climate-counterfactuals/
 2. Create a conda environement using the environment.yaml file ([explained here](https://docs.conda.io/projects/conda/en/stable/user-guide/tasks/manage-environments.html#creating-an-environment-from-a-file))
 3. Either reproduce the exact results from the paper (directly jump to step 7) or train the models from scratch (continue with step 4, note that results will slightly differ from the paper due to stochasticity)
 ---
-(trainig from scratch)
+(training from scratch)
 
 4. Train the DAE model from scratch
    - start model training by running start_joint_training.sh (this trains the model specified in settings.json)

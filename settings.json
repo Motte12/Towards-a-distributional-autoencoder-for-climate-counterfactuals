@@ -1,6 +1,6 @@
 {
 	"paths": { 
-	  "data": "/work2/fl53wumy-ws_new/fl53wumy-fl53wumy-llaae_ws_new-1779067202-1785633601/fl53wumy-llaae_ws_new-1779067202/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/v5_model/working_project/DAE_data_reproduce_results/input_data",
+	  "data": "-add your path-/DAE_data_reproduce_results/input_data",
 	  "dataset_trefht": "europe_10percent_masked_stacked_TREFHT_JJA.nc",
 	  "dataset_z500": "pcsts_and_fGMT_not_standardized_LE.nc",
 	  "dataset_trefht_eth_transient": "ETH_europe_10percent_masked_stacked_TREFHT_JJA.nc",
@@ -11,8 +11,8 @@
 	  "dataset_trefht_era5_transient": "ERA5_europe_10percent_masked_stacked_TREFHT_JJA.nc",
 	  "dataset_trefht_era5_fact_nudged": "ERA5_factual_nudged_europe_10percent_masked_TREFHT_JJA.nc",
 	  "dataset_trefht_era5_nudged": "ERA5_nudged_europe_10percent_masked_TREFHT_JJA.nc",
-	  "output_dir": "/work2/fl53wumy-ws_new/fl53wumy-fl53wumy-llaae_ws_new-1779067202-1785633601/fl53wumy-llaae_ws_new-1779067202/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/v5_model/working_project/DAE_data_reproduce_results/output_data",
-	  "other_data": "/work2/fl53wumy-ws_new/fl53wumy-fl53wumy-llaae_ws_new-1779067202-1785633601/fl53wumy-llaae_ws_new-1779067202/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/v5_model/working_project/DAE_data_reproduce_results/other_data"
+	  "output_dir": "-add your path-/DAE_data_reproduce_results/output_data",
+	  "other_data": "-add your path-/DAE_data_reproduce_results/other_data"
 	},
 	"current_model": "_devicecpu50_6_100_5_1001_20_2_50_encoderislearnable_lambda1.0_alpha1.5_bs128_bnisFalse_lr0.0001_pene0",
 	"epochs": 80,
