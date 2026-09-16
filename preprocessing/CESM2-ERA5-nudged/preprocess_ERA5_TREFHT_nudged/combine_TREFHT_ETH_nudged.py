@@ -2,7 +2,6 @@
 import xarray as xr
 import numpy as np
 import sys
-sys.path.append('/home/floer/Climate_Counterfactuals/climat-counterfactuals/LLAAE/data_preprocessing/restructured_modularized')
 import helper_functions as hf
 import argparse
 #%%

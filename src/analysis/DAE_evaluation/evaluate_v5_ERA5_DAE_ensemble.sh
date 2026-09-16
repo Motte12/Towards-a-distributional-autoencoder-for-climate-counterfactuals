@@ -67,8 +67,8 @@ for i in "${!period_start_years[@]}"; do
 
     # for ensemble type, choose one of:
     #era5_ens_type="ERA5_inherent"
-    #era5_ens_type="ERA5_inherent_detrended"
-    era5_ens_type="ERA5_train_stats"
+    era5_ens_type="ERA5_inherent_detrended"
+    #era5_ens_type="ERA5_train_stats"
     #era5_ens_type="ERA5_train_stats_detrended"
     
     python analysis_results_sheet_ETH_master_slim.py \

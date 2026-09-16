@@ -440,28 +440,28 @@ def main():
     
     # ensemble mean of restored factual DPA ensemble
     #dpa_ens_mean_restored = dpa_ensemble_fact_restored.TREFHT.mean(dim="ensemble_member")
-    dpa_ens_mean_fact_1300_restored = dpa_1300_fact_restored.mean(dim="ensemble_member")
+    dpa_ens_mean_fact_1300_restored = dpa_1300_fact_restored.median(dim="ensemble_member")
     if args.no_test_members > 1:
-        dpa_ens_mean_fact_1400_restored = dpa_1400_fact_restored.mean(dim="ensemble_member")
-        dpa_ens_mean_fact_1500_restored = dpa_1500_fact_restored.mean(dim="ensemble_member")
+        dpa_ens_mean_fact_1400_restored = dpa_1400_fact_restored.median(dim="ensemble_member")
+        dpa_ens_mean_fact_1500_restored = dpa_1500_fact_restored.median(dim="ensemble_member")
 
     # ensemble mean of restored counterfactual DPA ensemble
-    dpa_ens_mean_cf_1300_restored = dpa_1300_cf_restored.mean(dim="ensemble_member")
+    dpa_ens_mean_cf_1300_restored = dpa_1300_cf_restored.median(dim="ensemble_member")
     if args.no_test_members > 1:
-        dpa_ens_mean_cf_1400_restored = dpa_1400_cf_restored.mean(dim="ensemble_member")
-        dpa_ens_mean_cf_1500_restored = dpa_1500_cf_restored.mean(dim="ensemble_member")
+        dpa_ens_mean_cf_1400_restored = dpa_1400_cf_restored.median(dim="ensemble_member")
+        dpa_ens_mean_cf_1500_restored = dpa_1500_cf_restored.median(dim="ensemble_member")
 
     # mean of raw factual ensemble
-    dpa_ens_mean_fact_1300_raw = dpa_1300_fact_raw.mean(dim="ensemble_member")
+    dpa_ens_mean_fact_1300_raw = dpa_1300_fact_raw.median(dim="ensemble_member")
     if args.no_test_members > 1:
-        dpa_ens_mean_fact_1400_raw = dpa_1400_fact_raw.mean(dim="ensemble_member")
-        dpa_ens_mean_fact_1500_raw = dpa_1500_fact_raw.mean(dim="ensemble_member")
+        dpa_ens_mean_fact_1400_raw = dpa_1400_fact_raw.median(dim="ensemble_member")
+        dpa_ens_mean_fact_1500_raw = dpa_1500_fact_raw.median(dim="ensemble_member")
 
     # mean of raw counterfactual ensemble
-    dpa_ens_mean_cf_1300_raw = dpa_1300_cf_raw.mean(dim="ensemble_member")
+    dpa_ens_mean_cf_1300_raw = dpa_1300_cf_raw.median(dim="ensemble_member")
     if args.no_test_members > 1:
-        dpa_ens_mean_cf_1400_raw = dpa_1400_cf_raw.mean(dim="ensemble_member")
-        dpa_ens_mean_cf_1500_raw = dpa_1500_cf_raw.mean(dim="ensemble_member")
+        dpa_ens_mean_cf_1400_raw = dpa_1400_cf_raw.median(dim="ensemble_member")
+        dpa_ens_mean_cf_1500_raw = dpa_1500_cf_raw.median(dim="ensemble_member")
 
     
     dpa_ens_mean_fact_1300_raw_pt = torch.from_numpy(dpa_ens_mean_fact_1300_raw.values) #dpa_ens_mean_pt

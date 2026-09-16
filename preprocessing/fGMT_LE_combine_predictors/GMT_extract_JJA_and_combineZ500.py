@@ -4,8 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 import argparse
-sys.path.append('/home/floer/Climate_Counterfactuals/climat-counterfactuals/LLAAE/data_preprocessing/restructured_modularized')
-import helper_functions as hf
 import pickle
 #%%
 def main():

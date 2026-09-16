@@ -517,7 +517,7 @@ def create_ensemble(ensemble_type,
         else:
             print("Normal cf predictions ...")
             # replace GMTs with 0 for counterfactual predictions
-            z500_test_cf = z500_test
+            z500_test_cf = z500_test.clone()
             #z500_test_cf[:,-1] = 0 for fGMT not standardized
             # pre-industrial counterfactuals
             z500_test_cf[:,-1] = float(cf_fgmt) #-0.7389813694652794 # for fGMT standardized

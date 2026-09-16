@@ -1,13 +1,9 @@
-
 #%%
 import xarray as xr
 import numpy as np
 import sys
 import argparse
 import pickle
-
-# Add your helper module to path
-sys.path.append('/home/floer/Climate_Counterfactuals/climat-counterfactuals/LLAAE/data_preprocessing/restructured_modularized')
 import helper_functions as hf
 
 #%%

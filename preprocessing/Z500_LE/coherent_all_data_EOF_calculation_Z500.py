@@ -17,11 +17,6 @@ import shutil
 from datetime import datetime
 
 # Add utility functions path
-sys.path.append('/home/floer/Climate_Counterfactuals/climat-counterfactuals/utility_functions')
-sys.path.append('/home/floer/Climate_Counterfactuals/climat-counterfactuals/LLAAE/data_preprocessing/restructured_modularized')
-
-import load_datasets as load
-import analysis
 import helper_functions as hf
 #%%
 def main():

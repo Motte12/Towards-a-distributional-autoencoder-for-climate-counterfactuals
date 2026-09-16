@@ -485,7 +485,7 @@ def main():
 
         # print mae
         ax_cal.text(0.99, 0.2,                               # x=0.95, y=0.95 in axes coordinates (0-1)
-                r" $\mathrm{QR\ CE}$:" + f" {mae_qr:.3f}",   # text to display
+                r" $\mathrm{CE_{QR}}$:" + f" {mae_qr:.3f}",   # text to display
                 transform=ax_cal.transAxes,                  # use axes coordinates
                 ha='right',                                  # horizontal alignment
                 va='top',                                    # vertical alignment
@@ -494,7 +494,7 @@ def main():
             )
 
         ax_cal.text(0.99, 0.1,                                # x=0.95, y=0.95 in axes coordinates (0-1)
-                r"$\mathrm{DAE\ CE}$:" + f" {mae_dae:.3f}",   # text to display
+                r"$\mathrm{CE_{DAE}}$:" + f" {mae_dae:.3f}",   # text to display #r"$\mathrm{MAE_{QR}}$"
                 transform=ax.transAxes,                       # use axes coordinates
                 ha='right',                                   # horizontal alignment
                 va='top',                                     # vertical alignment
