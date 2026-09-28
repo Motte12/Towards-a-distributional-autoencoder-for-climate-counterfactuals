@@ -95,24 +95,26 @@ def main():
     
     # Large Ensemble Data
     z500_test, z500_train, mask_x_te, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced, pi_period_mean, _, _ = de.load_test_data(args.settings_file_path)
-    print(ds)
-
+    print("mask_x_te.shape", mask_x_te.shape)
+    print("mask type:", type(mask_x_te))
+    print("mask:", mask_x_te[0:20])
+    
     # ERA5 data
     if args.eval_ERA5:
         z500, mask_x_te_eth_fact, ds_test_eth_fact, ds_test_eth_cf, x_te_reduced_eth_fact, x_te_reduced_eth_cf, _, _ = de.load_era5_test_data(args.settings_file_path)
         
     # ETH Ensemble Test data
     else:
-        z500, mask_x_te_eth_fact, ds_test_eth_fact, ds_test_eth_cf, x_te_reduced_eth_fact, x_te_reduced_eth_cf, _, _ = de.load_eth_test_data(args.settings_file_path)
+        z500, mask_x_te_eth_fact, ds_test_eth_fact, ds_test_eth_cf, x_te_reduced_eth_fact_anom, x_te_reduced_eth_cf_anom, _, _ = de.load_eth_test_data(args.settings_file_path)
     # z500                  -> test predictors
     # mask_x_te_eth_fact    -> land mask
     # ds_test_eth_fact      -> factual test temperatures (xarray dataset) lat: 32, lon: 32, time: 14307
     # x_te_reduced_eth_fact -> land grid cells factual temperature data
     # x_te_reduced_eth_cf   -> land grid cells counterfactual temperature data
-
-    print("x_te_reduced_eth_fact:", x_te_reduced_eth_fact.shape)
+    print("ds_test_eth_fact:", ds_test_eth_fact)
+    print("x_te_reduced_eth_fact_anom:", x_te_reduced_eth_fact_anom.shape)
     
-    slice_end_index = int(x_te_reduced_eth_fact.shape[0]/args.no_test_members)
+    slice_end_index = int(x_te_reduced_eth_fact_anom.shape[0]/args.no_test_members)
     print("Slice end index:", slice_end_index)
     
     # datasets
@@ -133,6 +135,94 @@ def main():
     print("End index 1400:", end_idx_1400)
     print("Start index 1500:", start_idx_1500)
     print("End index 1500:", end_idx_1500)
+
+
+    ##################################################################
+    ### Need to add climatologies to compare data in correct space ###
+    ##################################################################
+    # load climatologies
+    with open(args.settings_file_path, 'r') as file:
+        settings = json.load(file)
+    
+    # -------
+    # FACTUAL
+    # -------
+    clim_eth_1300_pre=xr.open_dataset(os.path.join(settings['paths']['other_data'], "TREFHT_day_b.e212.BHISTcmip6_BSSP370cmip6.f09_g17.1300_1850-2100_clim.nc"))
+    clim_eth_1400_pre=xr.open_dataset(os.path.join(settings['paths']['other_data'], "TREFHT_day_b.e212.BHISTcmip6_BSSP370cmip6.f09_g17.1400_1850-2100_clim.nc"))
+    clim_eth_1500_pre=xr.open_dataset(os.path.join(settings['paths']['other_data'], "TREFHT_day_b.e212.BHISTcmip6_BSSP370cmip6.f09_g17.1500_1850-2100_clim.nc"))
+    clim_eth_1500_pre
+    
+    # subset
+    eth_1300_clim = clim_eth_1300_pre.assign_coords(lon=((clim_eth_1300_pre.lon + 180) % 360) - 180).sortby("lon").sel(lat=ds_test_eth_fact.lat, lon=ds_test_eth_fact.lon).sel(time=slice("1980-06-02", "1980-08-31"))
+    eth_1400_clim = clim_eth_1400_pre.assign_coords(lon=((clim_eth_1400_pre.lon + 180) % 360) - 180).sortby("lon").sel(lat=ds_test_eth_fact.lat, lon=ds_test_eth_fact.lon).sel(time=slice("1980-06-02", "1980-08-31"))
+    eth_1500_clim = clim_eth_1500_pre.assign_coords(lon=((clim_eth_1500_pre.lon + 180) % 360) - 180).sortby("lon").sel(lat=ds_test_eth_fact.lat, lon=ds_test_eth_fact.lon).sel(time=slice("1980-06-02", "1980-08-31"))
+    eth_1300_clim #time,lat,lon
+    
+    # combine climatologies into right order
+    combined_climatologies = np.concatenate([np.transpose(np.tile(eth_1300_clim.TREFHT.values, (251,1,1)), (1,2,0)), # shape: (32, 32, 14307)
+                                             np.transpose(np.tile(eth_1400_clim.TREFHT.values, (251,1,1)), (1,2,0)), 
+                                             np.transpose(np.tile(eth_1500_clim.TREFHT.values, (251,1,1)), (1,2,0))], 
+                                            axis=2)
+    print("combined climatologies shape:", combined_climatologies.shape)
+    # extract land grid cells from climatologies
+    combined_climatologies_pt = torch.tensor(combined_climatologies.reshape(-1, combined_climatologies.shape[-1]))
+    climatologies_masked = combined_climatologies_pt[mask_x_te] # masked climatologies shape: torch.Size([648, 14307])
+    print("masked climatologies shape:", climatologies_masked.shape)
+    
+    
+    print("x_te_reduced_eth_fact_anom.shape:", x_te_reduced_eth_fact_anom.shape)
+    print("ds_test_eth_fact:", ds_test_eth_fact.TREFHT.shape)
+
+    # --------------
+    # Counterfactual 
+    # --------------
+    clim_eth_cf_1300_pre=xr.open_dataset(os.path.join(settings['paths']['other_data'], "TREFHT_day_b.e212.B1850cmip6.f09_g17.001.nudge-1850-2100-SSP370.1300.linear-weak_shifted-1day_clim.nc"))
+    clim_eth_cf_1400_pre=xr.open_dataset(os.path.join(settings['paths']['other_data'], "TREFHT_day_b.e212.B1850cmip6.f09_g17.001.nudge-1850-2100-SSP370.1400.linear-weak_shifted-1day_clim.nc"))
+    clim_eth_cf_1500_pre=xr.open_dataset(os.path.join(settings['paths']['other_data'], "TREFHT_day_b.e212.B1850cmip6.f09_g17.001.nudge-1850-2100-SSP370.1500.linear-weak_shifted-1day_clim.nc"))
+
+    # subset
+    eth_cf_1300_clim = clim_eth_cf_1300_pre.assign_coords(lon=((clim_eth_cf_1300_pre.lon + 180) % 360) - 180).sortby("lon").sel(lat=ds_test_eth_fact.lat, lon=ds_test_eth_fact.lon).sel(time=slice("1980-06-02", "1980-08-31"))
+    eth_cf_1400_clim = clim_eth_cf_1400_pre.assign_coords(lon=((clim_eth_cf_1400_pre.lon + 180) % 360) - 180).sortby("lon").sel(lat=ds_test_eth_fact.lat, lon=ds_test_eth_fact.lon).sel(time=slice("1980-06-02", "1980-08-31"))
+    eth_cf_1500_clim = clim_eth_cf_1500_pre.assign_coords(lon=((clim_eth_cf_1500_pre.lon + 180) % 360) - 180).sortby("lon").sel(lat=ds_test_eth_fact.lat, lon=ds_test_eth_fact.lon).sel(time=slice("1980-06-02", "1980-08-31"))
+
+    # combine climatologies into right order
+    combined_climatologies_cf = np.concatenate([np.transpose(np.tile(eth_cf_1300_clim.TREFHT.values, (251,1,1)), (1,2,0)), # shape: (32, 32, 14307)
+                                             np.transpose(np.tile(eth_cf_1400_clim.TREFHT.values, (251,1,1)), (1,2,0)), 
+                                             np.transpose(np.tile(eth_cf_1500_clim.TREFHT.values, (251,1,1)), (1,2,0))], 
+                                            axis=2)
+    print("combined_climatologies.shape:", combined_climatologies.shape)
+    # extract land grid cells from climatologies
+    combined_climatologies_cf_pt = torch.tensor(combined_climatologies_cf.reshape(-1, combined_climatologies_cf.shape[-1]))
+    climatologies_cf_masked = combined_climatologies_cf_pt[mask_x_te]
+    print("masked climatologies shape:", climatologies_cf_masked.shape)
+
+    
+    
+    
+    
+    
+    # -----------------------------
+    # Compute absolute temperatures
+    # -----------------------------
+    # T_abs = anoms + climatology
+
+    # Factual Test
+    # reduced data
+    x_te_reduced_eth_fact = x_te_reduced_eth_fact_anom + climatologies_masked.T - 273.15
+    print("x_te_reduced_eth_fact.shape", x_te_reduced_eth_fact.shape)
+    # xarrays
+    ds_test_eth_fact = ds_test_eth_fact + combined_climatologies - 273.15
+    print("ds_test_eth_fact", ds_test_eth_fact)
+    
+
+    # Counterfactual Test
+    x_te_reduced_eth_cf = x_te_reduced_eth_cf_anom + climatologies_cf_masked.T - 273.15
+    print("x_te_reduced_eth_cf.shape", x_te_reduced_eth_cf.shape)
+    # xarrays
+    ds_test_eth_cf = ds_test_eth_cf + combined_climatologies_cf - 273.15
+    print("ds_test_eth_cf", ds_test_eth_cf)
+    
+
 
     
     #################
@@ -167,13 +257,35 @@ def main():
     print(f"{ensemble_path}/ETH_cf_gen_dpa_ens_{no_epochs}_dataset_restored.nc")
         
     # load DAE ensembles
-    # factual
-    dpa_ensemble_fact_raw = xr.open_dataset(f"{ensemble_path}/raw_ETH_gen_dpa_ens_{no_epochs}_dataset.nc")
-    dpa_ensemble_fact_restored = xr.open_dataset(f"{ensemble_path}/ETH_gen_dpa_ens_{no_epochs}_dataset_restored.nc")
+    # Factual
+    dpa_ensemble_fact_raw = xr.open_dataset(f"{ensemble_path}/raw_ETH_gen_dpa_ens_{no_epochs}_dataset.nc") # Dimensions: (ensemble_member: 100, time: 14307, lat_x_lon: 648)
+    dpa_ensemble_fact_restored = xr.open_dataset(f"{ensemble_path}/ETH_gen_dpa_ens_{no_epochs}_dataset_restored.nc")# Dimensions: (ensemble_member: 100, time: 14307, lat: 32, lon: 32)
+    print("DAE datasets:", dpa_ensemble_fact_raw, dpa_ensemble_fact_restored)
+    
+    # -------------------------
+    # Add climatologies factual
+    # -------------------------
+    
+    dpa_ensemble_fact_raw = dpa_ensemble_fact_raw + climatologies_masked.T.detach().cpu().numpy() - 273.15
+    dpa_ensemble_fact_restored = dpa_ensemble_fact_restored + combined_climatologies.transpose(2, 0, 1) - 273.15
+
+    print("Absolute DAE datasets:", dpa_ensemble_fact_raw, dpa_ensemble_fact_restored)
+    
+
     
     # counterfactual
     dpa_ensemble_raw_cf = xr.open_dataset(f"{ensemble_path}/raw_ETH_cf_gen_dpa_ens_{no_epochs}_dataset.nc")
     dpa_ensemble_restored_cf = xr.open_dataset(f"{ensemble_path}/ETH_cf_gen_dpa_ens_{no_epochs}_dataset_restored.nc")
+
+    # ----------------------------------------------
+    # Add climatologies counterfactual 
+    # (also need to add factual climatology here!!!)
+    # ----------------------------------------------
+    
+    dpa_ensemble_raw_cf = dpa_ensemble_raw_cf + climatologies_masked.T.detach().cpu().numpy() - 273.15
+    dpa_ensemble_restored_cf = dpa_ensemble_restored_cf + combined_climatologies.transpose(2, 0, 1) - 273.15
+    print("Absolute DAE datasets counterfactual:", dpa_ensemble_raw_cf, dpa_ensemble_restored_cf)
+    
 
     # subset to individual test members (1300, 1400, 1500)
     # FACTUAL
@@ -203,6 +315,11 @@ def main():
     
     
 
+    
+    
+    
+    
+    
     #####################
     ### Scatter data ####
     #####################
