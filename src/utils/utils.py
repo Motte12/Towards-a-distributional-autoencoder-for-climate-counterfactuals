@@ -148,6 +148,8 @@ def load_both_dpa_arrays(path, mask, ds_coords, ens_members, save_path=None, no_
     list_stacked_reshaped = []
     list_ds = []
 
+    time_2026 = xr.cftime_range("2026-06-02", periods=6, freq="5D", calendar="noleap")
+
     for climate in climate_list:
         print("CLIMATE:", climate)
         print("Now loading DPA ensemble restored including nans")
@@ -163,25 +165,25 @@ def load_both_dpa_arrays(path, mask, ds_coords, ens_members, save_path=None, no_
     
         
         # create dataset
-        if climate == "cf_era5_2028_gen":
-            ds_raw = xr.Dataset({
-                            "TREFHT": xr.DataArray(stacked_reshaped_raw.detach().numpy(), 
-                                 dims=("ensemble_member", "time", "lat_x_lon"),
-                                 coords={
-                                        "ensemble_member": np.arange(1,stacked_reshaped_raw.shape[0]+1),
-                                        "time": ds_coords.sel(time="2003").time,
-                                        "lat_x_lon": np.arange(stacked_raw.shape[2])
-                                        },
-                                                  )
-            })
+        #if climate == "cf_era5_2028_gen":
+        #    ds_raw = xr.Dataset({
+        #                    "TREFHT": xr.DataArray(stacked_reshaped_raw.detach().numpy(), 
+        #                         dims=("ensemble_member", "time", "lat_x_lon"),
+        #                         coords={
+        #                                "ensemble_member": np.arange(1,stacked_reshaped_raw.shape[0]+1),
+        #                                "time": ds_coords.sel(time="2003").time,
+        #                                "lat_x_lon": np.arange(stacked_raw.shape[2])
+        #                                },
+        #                                          )
+        #    })
 
-        elif climate == "cf_era5_2053_gen":
+        if climate == "cf_era5_2026_gen":
             ds_raw = xr.Dataset({
                             "TREFHT": xr.DataArray(stacked_reshaped_raw.detach().numpy(), 
                                  dims=("ensemble_member", "time", "lat_x_lon"),
                                  coords={
                                         "ensemble_member": np.arange(1,stacked_reshaped_raw.shape[0]+1),
-                                        "time": ds_coords.sel(time="2003").time,
+                                        "time": time_2026,
                                         "lat_x_lon": np.arange(stacked_raw.shape[2])
                                         },
                                                   )
@@ -192,7 +194,7 @@ def load_both_dpa_arrays(path, mask, ds_coords, ens_members, save_path=None, no_
                              dims=("ensemble_member", "time", "lat_x_lon"),
                              coords={
                                     "ensemble_member": np.arange(1,stacked_reshaped_raw.shape[0]+1),
-                                    "time": ds_coords.time,
+                                    "time": time_2026,
                                     "lat_x_lon": np.arange(stacked_raw.shape[2])
                                     },
                                               )
@@ -218,26 +220,26 @@ def load_both_dpa_arrays(path, mask, ds_coords, ens_members, save_path=None, no_
     
         
         # create dataset
-        if climate == "cf_era5_2028_gen":
-            ds = xr.Dataset({
-                            "TREFHT": xr.DataArray(stacked_reshaped.detach().numpy(), 
-                                 dims=("ensemble_member", "time", "lat", "lon"),
-                                 coords={
-                                        "ensemble_member": np.arange(1,stacked_reshaped.shape[0]+1),
-                                        "time": ds_coords.sel(time="2003").time,
-                                        "lat": ds_coords.lat,
-                                        "lon": ds_coords.lon
-                                        },
-                                                  )
-            })
+        #if climate == "cf_era5_2028_gen":
+        #    ds = xr.Dataset({
+        #                    "TREFHT": xr.DataArray(stacked_reshaped.detach().numpy(), 
+        #                         dims=("ensemble_member", "time", "lat", "lon"),
+        #                         coords={
+        #                                "ensemble_member": np.arange(1,stacked_reshaped.shape[0]+1),
+        #                                "time": ds_coords.sel(time="2003").time,
+        #                                "lat": ds_coords.lat,
+        #                                "lon": ds_coords.lon
+        #                                },
+        #                                          )
+        #    })
 
-        elif climate == "cf_era5_2053_gen":
+        if climate == "cf_era5_2026_gen":
             ds = xr.Dataset({
                             "TREFHT": xr.DataArray(stacked_reshaped.detach().numpy(), 
                                  dims=("ensemble_member", "time", "lat", "lon"),
                                  coords={
                                         "ensemble_member": np.arange(1,stacked_reshaped.shape[0]+1),
-                                        "time": ds_coords.sel(time="2003").time,
+                                        "time": time_2026,
                                         "lat": ds_coords.lat,
                                         "lon": ds_coords.lon
                                         },
@@ -250,7 +252,7 @@ def load_both_dpa_arrays(path, mask, ds_coords, ens_members, save_path=None, no_
                                  dims=("ensemble_member", "time", "lat", "lon"),
                                  coords={
                                         "ensemble_member": np.arange(1,stacked_reshaped.shape[0]+1),
-                                        "time": ds_coords.time,
+                                        "time": time_2026,
                                         "lat": ds_coords.lat,
                                         "lon": ds_coords.lon
                                         },

@@ -153,7 +153,7 @@ def main():
         climates=["gen", "cf_gen"]
 
     elif args.ensemble_type in ["ERA5_inherent", "ERA5_inherent_detrended", "ERA5_train_stats", "ERA5_train_stats_detrended"]:
-        climates=["gen", "cf_gen", "cf_era5_2028_gen", "cf_era5_2053_gen"]
+        climates=["gen2026", "cf_gen2026"]
 
     else:
         print("probably generating valdiation ensemble")

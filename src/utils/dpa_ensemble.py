@@ -49,6 +49,7 @@ def load_test_data(settings_file_path, standardize_predictors=0):
     pi_period_mean = ds_z500_pre.pseudo_pcs.isel(mode=1000, time=slice(0,4769)).sel(time=slice("1850","1900")).mean().values #extract the mean fGMT in 1850-1900
     print("mean_2028 xarray", ds_z500_pre.pseudo_pcs.isel(mode=1000, time=slice(0,4769)).sel(time="2028"))
     
+    mean_2026 = ds_z500_pre.pseudo_pcs.isel(mode=1000, time=slice(0,4769)).sel(time="2026").mean().values
     mean_2028 = ds_z500_pre.pseudo_pcs.isel(mode=1000, time=slice(0,4769)).sel(time="2028").mean().values
     mean_2053 = ds_z500_pre.pseudo_pcs.isel(mode=1000, time=slice(0,4769)).sel(time="2053").mean().values
     print("PI ref mean:", pi_period_mean)
@@ -77,7 +78,7 @@ def load_test_data(settings_file_path, standardize_predictors=0):
     #z500_train = z500[0:int(4769 * 10),:]
     #z500_test = z500[int(90*4769):476900,:]
     
-    return z500_test, z500_train, mask_x_te, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced, pi_period_mean, mean_2028, mean_2053
+    return z500_test, z500_train, mask_x_te, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced, pi_period_mean, mean_2026, mean_2028, mean_2053
 
 def load_eth_test_data(settings_file_path, standardize_predictors=0):
     """
@@ -227,7 +228,7 @@ def load_era5_test_data(settings_file_path, standardize_predictors=0, standardiz
         ds_z500_path = os.path.join(settings['paths']['data'], settings['paths']['dataset_z500_era5_detrended'])
     else:
         ds_z500_path = os.path.join(settings['paths']['data'], settings['paths']['dataset_z500_era5'])
-    ds_z500_pre = xr.open_dataset(ds_z500_path) #(settings['dataset_z500_eth_test'])
+    ds_z500_pre = xr.open_dataset(ds_z500_path) 
     
     
     print("ATTENTION: Z500 PC time-series is standardized manually here")
@@ -388,30 +389,30 @@ def create_ensemble(ensemble_type,
 
     elif ensemble_type == "ETH":
         z500_test, mask, ds_test, ds_test_eth_cf, x_te_reduced, x_te_reduced_cf, mean_gmt, std_gmt = load_eth_test_data(settings_file_path, standardize_predictors)
-        _, _, _, _, _, _, _, _, pi_period_mean, mean_2028, mean_2053 = load_test_data(settings_file_path, standardize_predictors)
+        _, _, _, _, _, _, _, _, pi_period_mean, mean_2026, mean_2028, mean_2053 = load_test_data(settings_file_path, standardize_predictors)
         notLE=True
 
     elif ensemble_type == "ERA5_inherent":
         z500_test, mask, ds_test, ds_test_eth_cf, x_te_reduced, x_te_reduced_cf, mean_gmt, std_gmt = load_era5_test_data(settings_file_path, standardize_predictors)
-        _, _, _, _, _, _, _, _, pi_period_mean, mean_2028, mean_2053 = load_test_data(settings_file_path, standardize_predictors)
+        _, _, _, _, _, _, _, _, pi_period_mean, mean_2026, mean_2028, mean_2053 = load_test_data(settings_file_path, standardize_predictors)
         notLE=True
         era5_future_cfs=True
 
     elif ensemble_type == "ERA5_inherent_detrended":
         z500_test, mask, ds_test, ds_test_eth_cf, x_te_reduced, x_te_reduced_cf, mean_gmt, std_gmt = load_era5_test_data(settings_file_path, standardize_predictors, detrended=True)
-        _, _, _, _, _, _, _, _, pi_period_mean, mean_2028, mean_2053 = load_test_data(settings_file_path, standardize_predictors)
+        _, _, _, _, _, _, _, _, pi_period_mean, mean_2026, mean_2028, mean_2053 = load_test_data(settings_file_path, standardize_predictors)
         notLE=True
-        era5_future_cfs=True
+        #era5_future_cfs=True
 
     elif ensemble_type == "ERA5_train_stats":
         z500_test, mask, ds_test, ds_test_eth_cf, x_te_reduced, x_te_reduced_cf, mean_gmt, std_gmt = load_era5_test_data(settings_file_path, standardize_predictors, standardization_type="train_stats")
-        _, _, _, _, _, _, _, _, pi_period_mean, mean_2028, mean_2053 = load_test_data(settings_file_path, standardize_predictors)
+        _, _, _, _, _, _, _, _, pi_period_mean, mean_2026, mean_2028, mean_2053 = load_test_data(settings_file_path, standardize_predictors)
         notLE=True
         era5_future_cfs=True
 
     elif ensemble_type == "ERA5_train_stats_detrended":
         z500_test, mask, ds_test, ds_test_eth_cf, x_te_reduced, x_te_reduced_cf, mean_gmt, std_gmt = load_era5_test_data(settings_file_path, standardize_predictors, standardization_type="train_stats", detrended=True)
-        _, _, _, _, _, _, _, _, pi_period_mean, mean_2028, mean_2053 = load_test_data(settings_file_path, standardize_predictors)
+        _, _, _, _, _, _, _, _, pi_period_mean, mean_2026, mean_2028, mean_2053 = load_test_data(settings_file_path, standardize_predictors)
         notLE=True
         era5_future_cfs=True
 
@@ -425,6 +426,7 @@ def create_ensemble(ensemble_type,
         print("PI ref mean:", pi_period_mean)
         # standardize temporal fGMT values 
         cf_fgmt = (pi_period_mean - mean_gmt) / std_gmt
+        cf_2026 = (mean_2026 - mean_gmt) / std_gmt
         cf_2028 = (mean_2028 - mean_gmt) / std_gmt
         cf_2053 = (mean_2053 - mean_gmt) / std_gmt
         print("CF fGMT:", cf_fgmt)
@@ -460,28 +462,39 @@ def create_ensemble(ensemble_type,
     model_pred.eval()
 
     if era5_future_cfs:
-        z500_test_2003_cf = z500_test[(63*19):(64*19),:].clone()
+        #z500_test_2003_cf = z500_test[(63*19):(64*19),:].clone()
+        z500_test_2026_cf = z500_test[(86*19):(86*19+6),:].clone()
+        
+        # predictors for 2026
+        cf_predictors_2026 = z500_test_2026_cf.clone()
+        cf_predictors_2026[:,-1] = float(cf_2026)
+        print("CF2028 value:", float(cf_2026))
         
         # predictors for 2028
-        cf_predictors_2028 = z500_test_2003_cf.clone()
-        cf_predictors_2028[:,-1] = float(cf_2028)
-        print("CF2028 value:", float(cf_2028))
+        #cf_predictors_2028 = z500_test_2003_cf.clone()
+        #cf_predictors_2028[:,-1] = float(cf_2028)
+        #print("CF2028 value:", float(cf_2028))
         
         # predictors for 2053
-        cf_predictors_2053 = z500_test_2003_cf.clone()
-        cf_predictors_2053[:,-1] = float(cf_2053)
-        print("CF2053 value:", float(cf_2053))
+        #cf_predictors_2053 = z500_test_2003_cf.clone()
+        #cf_predictors_2053[:,-1] = float(cf_2053)
+        #print("CF2053 value:", float(cf_2053))
         
         print("z500_test shape:", z500_test.shape)
         # counterfactuals for 2028 and 2053
         for i in range(1, ensemble_size+1):
+            # create 2026 counterfactuals
+            gen_te_cf_2026 = model_dec(model_pred(cf_predictors_2026.to(device).float()))
+            print(gen_te_cf_2026.shape)
+            torch.save(gen_te_cf_2026, f"{save_path}/cf_era5_2026_gen{i}_te.pt")
+            
             # create 2028 counterfactuals
-            gen_te_cf_2028 = model_dec(model_pred(cf_predictors_2028.to(device).float()))
-            torch.save(gen_te_cf_2028, f"{save_path}/cf_era5_2028_gen{i}_te.pt")
+            #gen_te_cf_2028 = model_dec(model_pred(cf_predictors_2028.to(device).float()))
+            #torch.save(gen_te_cf_2028, f"{save_path}/cf_era5_2028_gen{i}_te.pt")
 
             # create 2053 counterfactuals
-            gen_te_cf_2053 = model_dec(model_pred(cf_predictors_2053.to(device).float()))
-            torch.save(gen_te_cf_2053, f"{save_path}/cf_era5_2053_gen{i}_te.pt")
+            #gen_te_cf_2053 = model_dec(model_pred(cf_predictors_2053.to(device).float()))
+            #torch.save(gen_te_cf_2053, f"{save_path}/cf_era5_2053_gen{i}_te.pt")
 
     
     # actually create ensemble
@@ -495,7 +508,7 @@ def create_ensemble(ensemble_type,
             print("Normal predictions ...")
             for i in range(1, ensemble_size+1):
                 gen_te = model_dec(model_pred(z500_test.to(device).float()))
-                torch.save(gen_te, f"{save_path}/gen{i}_te.pt")
+                torch.save(gen_te, f"{save_path}/gen2026{i}_te.pt")
 
     if create_train_ensemble:
         if autoencode:
@@ -523,7 +536,7 @@ def create_ensemble(ensemble_type,
             z500_test_cf[:,-1] = float(cf_fgmt) #-0.7389813694652794 # for fGMT standardized
             for i in range(1, ensemble_size+1):
                 gen_te_cf = model_dec(model_pred(z500_test_cf.to(device).float()))
-                torch.save(gen_te_cf, f"{save_path}/cf_gen{i}_te.pt")
+                torch.save(gen_te_cf, f"{save_path}/cf_gen2026{i}_te.pt")
     
         
 
